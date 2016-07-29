@@ -113,7 +113,7 @@
                   <h4>Video with the most likes and 0 dislikes:</h4>
                   <ul>
                     <li><b>Title: </b>{{analysis.all_likes.title}}</li>
-                    <li><b>Like Count: </b>{{analysis.all_likes.like_count}}</li>
+                    <li><b>Like Count: </b>{{analysis.all_likes.like_count|int}}</li>
                     <li><b>Url: </b><a href="{{analysis.all_likes.webpage_url}}">{{analysis.all_likes.webpage_url}}</a></li>
                   </ul>
                 </div>
@@ -137,7 +137,7 @@
                   <h4>Video with the most dislikes:</h4>
                   <ul>
                     <li><b>Title: </b>{{analysis.most_disliked.title}}</li>
-                    <li><b>View Count: </b>{{analysis.most_disliked.dislike_count}}</li>
+                    <li><b>View Count: </b>{{analysis.most_disliked.dislike_count|int}}</li>
                     <li><b>Url: </b><a href="{{analysis.most_disliked.webpage_url}}">{{analysis.most_disliked.webpage_url}}</a></li>
                   </ul>
                 </div>
@@ -261,14 +261,17 @@
               <div class="section__circle-container__circle mdl-color--accent section__circle--big"></div>
             </div>
             <div class="section__text mdl-cell mdl-cell--4-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-              <h5>Lorem ipsum dolor sit amet</h5>
-              Qui sint ut et qui nisi cupidatat. Reprehenderit nostrud proident officia exercitation anim et pariatur ex.
+              <h4> Notes: </h4>
+                <ul>     
+                  <li><b>Ideas: </b>Any ideas for additional analysis can be submitted as an issue on github. The repository can be reached through the "View Source" button.</li>
+                  <li><b>Created by: </b> Jessime Kirk</li>
+                </ul>
             </div>
           </section>
         </div>
       </main>
     </div>
-    <a href="https://github.com/Jessime" target="_blank" id="view-source" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-color--accent mdl-color-text--accent-contrast">View Source</a>
+    <a href="https://github.com/Jessime/youtube_history" target="_blank" id="view-source" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-color--accent mdl-color-text--accent-contrast">View Source</a>
     <script src="https://code.getmdl.io/1.1.3/material.min.js"></script>
   </body>
 </html>

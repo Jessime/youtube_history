@@ -15,9 +15,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from collections import Counter
 from scipy.stats import describe
 from wordcloud import WordCloud
+from webbrowser import open_new_tab
 
 from flask import Flask
 from flask import render_template
@@ -43,6 +43,8 @@ def index():
 
 def launch_web():
     app.debug = False
+    url = 'http://127.0.0.1:5000'
+    open_new_tab(url)
     app.run()
     
 class Analysis():

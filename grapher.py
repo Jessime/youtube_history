@@ -3,6 +3,8 @@ import numpy as np
 import plotly
 import plotly.graph_objs as go
 
+from collections import Counter
+
 class Grapher():
     avg_rate_plot = None
     duration_plot = None
