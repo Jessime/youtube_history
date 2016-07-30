@@ -44,7 +44,7 @@ def index():
                            tags_plot=Grapher.tags_plot)
 
 def launch_web():
-    app.debug = True
+    app.debug = False
     url = 'http://127.0.0.1:5000'
     open_new_tab(url)
     app.run()
