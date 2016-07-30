@@ -9,13 +9,15 @@ import json
 import os
 import pickle
 import argparse
+import getpass
 import subprocess as sp
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.stats import describe
+from sys import stdout
+#from scipy.stats import describe
 from wordcloud import WordCloud
 from webbrowser import open_new_tab
 
@@ -30,7 +32,7 @@ app.secret_key = 'this key should be complex'
 
 @app.route('/data/<path:filename>')
 def data(filename):
-    return send_from_directory(analysis.path, filename)
+    return send_from_directory(analysis.ran, filename)
                                
 @app.route('/', methods=['GET', 'POST'])    
 def index():
@@ -42,7 +44,7 @@ def index():
                            tags_plot=Grapher.tags_plot)
 
 def launch_web():
-    app.debug = False
+    app.debug = True
     url = 'http://127.0.0.1:5000'
     open_new_tab(url)
     app.run()
@@ -75,7 +77,7 @@ class Analysis():
     def download_data(self):
         print('There\'s no data in this folder. Let\'s download some.')
         user = input('Google username: ')
-        pw = input('Google password: ')
+        pw = getpass.getpass('Google password: ')
         files = os.path.join(self.raw, '%(autonumber)s')
         if not os.path.exists(self.raw):
             os.makedirs(self.raw)
@@ -83,7 +85,11 @@ class Analysis():
                '-o "{}" '+
                '--skip-download --write-info-json -i '+
                'https://www.youtube.com/feed/history ').format(user, pw, files)
-        sp.call(cmd.split())
+        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
+        while True:
+          line = p.stdout.readline()
+          print(line)
+          if not line: break
     
     def df_from_files(self):
         print('Creating dataframe...')
@@ -120,10 +126,13 @@ class Analysis():
         
     def check_df(self):
         """Create the dataframe and tags from files if file doesn't exist."""
+        if not os.path.exists(self.ran):
+            os.makedirs(self.ran)
         df_file = os.path.join(self.ran, 'df.csv')
         if os.path.isfile(df_file):
             self.df = pd.read_csv(df_file, index_col=0, parse_dates=[-11])
             self.tags = pickle.load(open(os.path.join(self.ran, 'tags.txt'), 'rb'))
+            self.df['upload_date'] = pd.to_datetime(self.df['upload_date'])
         else:
             self.df_from_files()
 
@@ -221,7 +230,7 @@ class Analysis():
         self.start_analysis()
 
 if __name__ == '__main__':
-    print('Welcome!')
+    print('Welcome!'); stdout.flush()
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", '--out', default='data', help="Path to empty directory for data storage.")
     args = parser.parse_args()
