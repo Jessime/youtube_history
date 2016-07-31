@@ -69,3 +69,5 @@ target/
 #Backups
 *~
 
+#Data
+static/images/wordcloud.png

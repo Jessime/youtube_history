@@ -29,10 +29,6 @@ from grapher import Grapher
 
 app = Flask(__name__)
 app.secret_key = 'this key should be complex'
-
-@app.route('/data/<path:filename>')
-def data(filename):
-    return send_from_directory(analysis.ran, filename)
                                
 @app.route('/', methods=['GET', 'POST'])    
 def index():
@@ -58,7 +54,6 @@ class Analysis():
         self.df = None
         self.tags = None
         
-        self.wordcloud = os.path.join(self.ran, 'wordcloud.png')
         self.seconds= None
         self.formatted_time = None
         self.all_likes = None
@@ -112,17 +107,16 @@ class Analysis():
         self.tags = deletes['tags']                
         pickle.dump(self.tags, open(os.path.join(self.ran, 'tags.txt'), 'wb'))
         
-    def check_wordcloud(self):
+    def make_wordcloud(self):
         """Generate the wordcloud file if it doesn't exist."""
-        if not os.path.isfile(self.wordcloud):
-            plt.rcParams['figure.figsize'] = [24.0, 18.0]
-            print('Creating wordcloud')
-            flat_tags = [item for sublist in self.tags for item in sublist]
-            wordcloud = WordCloud(width=1920, 
-                                  height=1080, 
-                                  relative_scaling=.5)
-            wordcloud.generate(' '.join(flat_tags))
-            wordcloud.to_file(self.wordcloud)
+        plt.rcParams['figure.figsize'] = [24.0, 18.0]
+        print('Creating wordcloud')
+        flat_tags = [item for sublist in self.tags for item in sublist]
+        wordcloud = WordCloud(width=1920, 
+                              height=1080, 
+                              relative_scaling=.5)
+        wordcloud.generate(' '.join(flat_tags))
+        wordcloud.to_file(os.path.join('static', 'images', 'wordcloud.png'))
         
     def check_df(self):
         """Create the dataframe and tags from files if file doesn't exist."""
@@ -219,7 +213,7 @@ class Analysis():
         
     def start_analysis(self):
         self.check_df()
-        self.check_wordcloud()
+        self.make_wordcloud()
         self.compute()
         self.graph()
         
