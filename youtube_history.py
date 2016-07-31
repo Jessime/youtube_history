@@ -23,7 +23,7 @@ from webbrowser import open_new_tab
 
 from flask import Flask
 from flask import render_template
-from flask import send_from_directory
+#from flask import send_from_directory
 
 from grapher import Grapher
 
@@ -219,9 +219,14 @@ class Analysis():
         
     def run(self):
         file1 = os.path.join(self.raw, '00001.info.json')
-        if not os.path.isfile(file1):
+        some_data = os.path.isfile(file1)
+        if not some_data:
             self.download_data()
-        self.start_analysis()
+        some_data = os.path.isfile(file1)
+        if some_data:
+            self.start_analysis()
+        else:
+            print('No data was downloaded.')
 
 if __name__ == '__main__':
     print('Welcome!'); stdout.flush()
