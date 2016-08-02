@@ -1,7 +1,7 @@
+youtube_dl==2016.07.30
 Flask==0.11.1
 matplotlib==1.5.1
 numpy==1.11.1
 pandas==0.18.1
 plotly==1.12.4
-scipy==0.18.0
 wordcloud==1.2.1

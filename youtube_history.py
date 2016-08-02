@@ -18,7 +18,10 @@ import matplotlib.pyplot as plt
 
 from sys import stdout
 #from scipy.stats import describe
-from wordcloud import WordCloud
+try:
+    from wordcloud import WordCloud
+except ImportError:
+    WordCloud = None
 from webbrowser import open_new_tab
 
 from flask import Flask
@@ -71,20 +74,25 @@ class Analysis():
         
     def download_data(self):
         print('There\'s no data in this folder. Let\'s download some.')
-        user = input('Google username: ')
-        pw = getpass.getpass('Google password: ')
-        files = os.path.join(self.raw, '%(autonumber)s')
-        if not os.path.exists(self.raw):
-            os.makedirs(self.raw)
-        cmd = ('youtube-dl -u "{}" -p "{}" '+
-               '-o "{}" '+
-               '--skip-download --write-info-json -i '+
-               'https://www.youtube.com/feed/history ').format(user, pw, files)
-        p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
-        while True:
-          line = p.stdout.readline()
-          print(line)
-          if not line: break
+        successful_login = False
+        while not successful_login:
+            successful_login = True
+            user = input('Google username: ')
+            pw = getpass.getpass('Google password: ')
+            files = os.path.join(self.raw, '%(autonumber)s')
+            if not os.path.exists(self.raw):
+                os.makedirs(self.raw)
+            cmd = ('youtube-dl -u "{}" -p "{}" '+
+                   '-o "{}" '+
+                   '--skip-download --write-info-json -i '+
+                   'https://www.youtube.com/feed/history ').format(user, pw, files)
+            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
+            while True:
+              line = p.stdout.readline().decode("utf-8").strip()
+              print(line)
+              if line == 'WARNING: unable to log in: bad username or password':
+                  successful_login = False
+              if not line: break
     
     def df_from_files(self):
         print('Creating dataframe...')
@@ -213,7 +221,8 @@ class Analysis():
         
     def start_analysis(self):
         self.check_df()
-        self.make_wordcloud()
+        if WordCloud is not None:
+            self.make_wordcloud()
         self.compute()
         self.graph()
         
@@ -235,4 +244,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     analysis = Analysis(args.out)
     analysis.run()
-    launch_web()
+    file1 = os.path.join(analysis.raw, '00001.info.json')
+    some_data = os.path.isfile(file1)
+    if some_data:
+        launch_web()
