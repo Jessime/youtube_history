@@ -35,6 +35,7 @@ Assuming you have installed Anaconda, do:
     $conda create -n youtube Flask matplotlib numpy pandas
     $activate youtube
     $pip install plotly
+    $pip install youtube_dl
 
 This final step may fail. It's okay if it does:
 
