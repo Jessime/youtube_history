@@ -144,8 +144,9 @@ class Analysis():
         The tags of each video are pickled and saved as tags.txt
         """
         print('Creating dataframe...')
-        num = len([name for name in os.listdir(self.raw)])
-        files = os.path.join(self.raw, '{:05d}.info.json')
+        num = len([name for name in os.listdir(self.raw) if not name[0]=='.'])
+        files = os.path.join(self.raw, '~.info.json') # This is a weird hack
+        files = files.replace('~', '{:05d}') # It allows path joining to work on Windows
         data = [json.load(open(files.format(i))) for i in range(1, num + 1)]
         
         columns = ['formats', 'tags', 'categories', 'thumbnails']
