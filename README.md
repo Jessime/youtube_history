@@ -26,7 +26,7 @@ Install the dependencies by entering:
 ### Windows
 
 Windows is a bit trickier. Compiling Numpy can be difficult. 
-And personally, I haven't had any luck getting wordcloud up and running yet.
+And personally, I haven't had any luck getting `wordcloud` up and running yet.
 Hopefully this will be addressed soon. 
 Anyway, the best method I've found for Windows is to use conda environments.
 You can read more about them [here](http://conda.pydata.org/docs/using/envs.html#list-all-environments).
@@ -58,5 +58,6 @@ Feel free to direct any questions or comments to the Issues page of the reposito
 
 ## TODO
 
-* Address "error: Unable to find vcvarsall.bat" issues
+* Docstrings
+* Address "error: Unable to find vcvarsall.bat" issues.
 * Fix bugs for "No funnies" and youtube-dl error.

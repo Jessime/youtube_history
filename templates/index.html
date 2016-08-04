@@ -212,19 +212,19 @@
 <!-- Average Ratings Plot -->
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
-                {{avg_rate_plot | safe}}
+                {{analysis.grapher.avg_rate_plot | safe}}
             </div>
           </section>
 <!-- Duration Plot -->
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
-                {{duration_plot | safe}}
+                {{analysis.grapher.duration_plot | safe}}
             </div>
           </section>
 <!-- Views Plot -->
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
-                {{views_plot | safe}}
+                {{analysis.grapher.views_plot | safe}}
             </div>
           </section>
 <!-- Wordcloud -->
@@ -239,7 +239,7 @@
 <!-- Tags Plot -->
       <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
         <div class="mdl-card mdl-cell mdl-cell--12-col">
-            {{tags_plot | safe}}
+            {{analysis.grapher.tags_plot | safe}}
         </div>
       </section>
 <!-- Bottom Flat -->

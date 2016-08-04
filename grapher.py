@@ -6,29 +6,81 @@ import plotly.graph_objs as go
 from collections import Counter
 
 class Grapher():
-    avg_rate_plot = None
-    duration_plot = None
-    views_plot = None
-    tags_plot = None
+    """Creates html-embeddable interactive graphs of Youtube data using plotly.
     
+    Parameters
+    ----------
+    df : Dataframe
+        Users youtube data
+    tags : [[str]]
+        A list of tags for each downloaded video
+        
+    Attributes
+    ----------
+    plot : func
+        Alias for plotly's main plotting function
+    avg_rate_plot : str
+        html <div> of a plotly histogram of the average ratings for each video
+    duration : str
+        html <div> of a plotly histogram of video durations on a log scale
+    views_plot : str
+        html <div> of a plotly histogram of video views on a log scale
+    tags_plot : str
+        html <div> of a plotly scatterplot of most common rollings tags
+    """
     def __init__(self, df, tags):
         self.df = df
         self.tags = tags
+        
         self.plot = plotly.offline.plot
+        self.avg_rate_plot = None
+        self.duration_plot = None
+        self.views_plot = None
+        self.tags_plot = None        
         
     def make_log_data(self, series, dec=2):
+        """Log10 transforms all data before plotting.
+        
+        Parameters
+        ----------
+        series : Series
+            The data values to log transform
+        dec : int (default=2)
+            The number of decimals to round to for tick labels
+            
+        Returns
+        -------
+        log : Series
+            The log transformed series
+        ticks : ndarray
+            Physical locations (positions) of the tick labels on the plot
+        ticks_txt : ndarray
+            Tick labels, on log scale, at each of the tick positions"""
         log = np.log10(series)
         ticks = np.linspace(min(log), max(log), 10)
         ticks_txt = np.round(np.power(10, ticks), decimals=dec)
         return log, ticks, ticks_txt
 
     def humanize(self, num):
+        """Converts large int values into human readable strings
+        
+        Parameters
+        ----------
+        num : int
+            The large value to convert
+            
+        Returns
+        -------
+        num : str
+            Formatted value
+        """
         millnames = ['',' K',' M',' B',' T']
         n = float(num)
         log = np.log10(abs(n))/3
         millidx = max(0,min(len(millnames)-1,
                             int(np.floor(0 if n == 0 else log))))
-        return '{:.0f}{}'.format(n / 10**(3 * millidx), millnames[millidx])
+        num_str = '{:.0f}{}'.format(n / 10**(3 * millidx), millnames[millidx])
+        return num_str
         
     def average_rating(self):
         data = [go.Histogram(x=self.df.average_rating,
@@ -37,7 +89,7 @@ class Grapher():
                       xaxis = dict(title = 'Rating'),
                       yaxis = dict(title = 'Count'))
         fig = dict(data=data, layout=layout)
-        Grapher.avg_rate_plot = self.plot(fig,  output_type='div')
+        self.avg_rate_plot = self.plot(fig,  output_type='div')
     
     def duration(self):  
 
@@ -51,7 +103,7 @@ class Grapher():
                                    tickvals=ticks,
                                    ticktext=ticks_txt))
         fig = dict(data=data, layout=layout)
-        Grapher.duration_plot = self.plot(fig,  output_type='div')
+        self.duration_plot = self.plot(fig,  output_type='div')
         
     def views(self):
         views, ticks, ticks_txt = self.make_log_data(self.df.view_count, 0)
@@ -65,9 +117,18 @@ class Grapher():
                                    tickvals=ticks,
                                    ticktext=ticks_txt))
         fig = dict(data=data, layout=layout)
-        Grapher.views_plot = self.plot(fig, output_type='div')
+        self.views_plot = self.plot(fig, output_type='div')
         
     def get_max_tags_and_vals(self):
+        """Finds the rolling tags and their value counts over chunks of 100 videos
+        
+        Returns
+        -------
+        max_tags : [str]
+            Most popular tags in each chunk of videos
+        max_values : [int]
+            The number of times the most popular tag appears
+        """
         max_tags = []
         max_values = []
         chunk_starts = [i for i in range(0, len(self.tags), 100)]
@@ -92,5 +153,5 @@ class Grapher():
                       yaxis = dict(title = 'Tag Count'),
                       xaxis = dict(title = 'Position of first video in history'))
         fig = dict(data=data, layout=layout)
-        Grapher.tags_plot = self.plot(fig, output_type='div')
+        self.tags_plot = self.plot(fig, output_type='div')
         

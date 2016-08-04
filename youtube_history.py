@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 """
-Created on Sat Jul 23 19:04:55 2016
-
-@author: jessime
+Downloads, analyzes, and reports all Youtube videos associated with a users Google account.
 """
 
 import json
@@ -30,39 +28,83 @@ from flask import render_template
 
 from grapher import Grapher
 
+
 app = Flask(__name__)
-app.secret_key = 'this key should be complex'
-                               
-@app.route('/', methods=['GET', 'POST'])    
+                         
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html',
-                           analysis=analysis,
-                           avg_rate_plot=Grapher.avg_rate_plot,
-                           duration_plot=Grapher.duration_plot,
-                           views_plot=Grapher.views_plot,
-                           tags_plot=Grapher.tags_plot)
+    return render_template('index.html', analysis=analysis)
 
 def launch_web():
     app.debug = False
-    url = 'http://127.0.0.1:5000'
-    open_new_tab(url)
-    app.run()
+    app.secret_key = 'this key should be complex'      
+
+    file1 = os.path.join(analysis.raw, '00001.info.json')
+    some_data = os.path.isfile(file1)
+    if some_data:    
+        url = 'http://127.0.0.1:5000'
+        open_new_tab(url)
+        app.run()
     
 class Analysis():
+    """Main class responsible for downloading and analyzing data.
     
+    Parameters
+    ----------
+    path : str (default='data')
+        The path to the directory where both raw and computed results should be stored.
+        
+    Attributes
+    ----------
+    raw : str
+        Path to 'raw' directory in self.path directory
+    ran : str
+        Path to 'ran' directory in self.path directory
+    df : Dataframe
+        Pandas Dataframe used to store compiled results
+    tags : [[str]]
+        A list of tags for each downloaded video
+    grapher : Grapher
+        Creates the interactive graphs portion of the analysis
+        
+    seconds : int
+        The sum of video durations
+    formatted_time : str
+        Seconds converted to W/D/H/M/S format
+    all_likes : Series
+        Video that has the most likes without a single dislike
+    most_likes : Series
+        Video with the most total likes
+    most_viewed : Series
+        Video with the most total views
+    oldest_videos : Dataframe
+        First 10 videos watched on user's account.
+    oldest_upload : Series
+        Video with the oldest upload date to youtube.
+    HD : int
+        The number of videos that have high-definition resolution
+    UHD : int
+        The number of videos that have ultra-high-definition resolution
+    top_uploaders : Series
+        The most watched channel names with corresponding video counts
+    funny_counts : int
+        The max number of times a video's description says the word 'funny'
+    funny : Series
+        The 'funniest' video as determined by funny_counts
+    """
     def __init__(self, path='data'):
         self.path = path
         self.raw = os.path.join(self.path, 'raw')
         self.ran = os.path.join(self.path, 'ran')
         self.df = None
         self.tags = None
+        self.grapher = None  
         
         self.seconds= None
         self.formatted_time = None
         self.all_likes = None
         self.most_liked = None
         self.most_viewed = None
-        self.num_4k = None
         self.oldest_videos = None
         self.oldest_upload = None
         self.HD = None
@@ -70,9 +112,9 @@ class Analysis():
         self.top_uploaders = None
         self.funny = None
         self.funny_counts = None
-
         
     def download_data(self):
+        """Uses youtube_dl to download individual json files for each video."""
         print('There\'s no data in this folder. Let\'s download some.')
         successful_login = False
         while not successful_login:
@@ -95,6 +137,12 @@ class Analysis():
               if not line: break
     
     def df_from_files(self):
+        """Constructs a Dataframe from the downloaded json files.
+        
+        All json keys whose values are not lists are compiled into the dataframe.
+        The dataframe is then saved as a csv file in the self.ran directory.
+        The tags of each video are pickled and saved as tags.txt
+        """
         print('Creating dataframe...')
         num = len([name for name in os.listdir(self.raw)])
         files = os.path.join(self.raw, '{:05d}.info.json')
@@ -116,7 +164,7 @@ class Analysis():
         pickle.dump(self.tags, open(os.path.join(self.ran, 'tags.txt'), 'wb'))
         
     def make_wordcloud(self):
-        """Generate the wordcloud file if it doesn't exist."""
+        """Generate the wordcloud file and save it to static/images/."""
         plt.rcParams['figure.figsize'] = [24.0, 18.0]
         print('Creating wordcloud')
         flat_tags = [item for sublist in self.tags for item in sublist]
@@ -178,6 +226,7 @@ class Analysis():
         self.most_viewed = self.df.ix[self.df['view_count'].idxmax()]
     
     def funniest_description(self):
+        """Counts number of times 'funny' is in each description. Saves top result."""
         funny_counts = []
         descriptions = []
         index = []
@@ -197,6 +246,7 @@ class Analysis():
             self.funny = 'Wait, 0? You\'re too cool to watch funny videos on youtube?'
             
     def three_randoms(self):
+        """Finds results for video resolutions, most popular channels, and funniest video."""
         self.HD = self.df[(720 <= self.df.height) & (self.df.height <= 1080)].shape[0]
         self.UHD = self.df[self.df.height > 1080].shape[0]
         self.top_uploaders = self.df.uploader.value_counts().head(n=15)
@@ -207,17 +257,16 @@ class Analysis():
         self.total_time()
         self.worst_videos()
         self.best_videos()
-        self.num_4k = self.df[self.df.width >= 3840].shape[0]
         self.oldest_videos = self.df[['title', 'webpage_url']].tail(n=10)
         self.oldest_upload = self.df.ix[self.df['upload_date'].idxmin()]
         self.three_randoms()
 
     def graph(self):
-        grapher = Grapher(self.df, self.tags)
-        grapher.average_rating()
-        grapher.duration()
-        grapher.views()
-        grapher.gen_tags_plot()
+        self.grapher = Grapher(self.df, self.tags)
+        self.grapher.average_rating()
+        self.grapher.duration()
+        self.grapher.views()
+        self.grapher.gen_tags_plot()
         
     def start_analysis(self):
         self.check_df()
@@ -227,6 +276,7 @@ class Analysis():
         self.graph()
         
     def run(self):
+        """Main function for downloading and analyzing data."""
         file1 = os.path.join(self.raw, '00001.info.json')
         some_data = os.path.isfile(file1)
         if not some_data:
@@ -244,7 +294,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     analysis = Analysis(args.out)
     analysis.run()
-    file1 = os.path.join(analysis.raw, '00001.info.json')
-    some_data = os.path.isfile(file1)
-    if some_data:
-        launch_web()
+    launch_web()
