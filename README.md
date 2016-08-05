@@ -15,13 +15,13 @@ Copy or clone this package from Github.
 
 Open the Terminal/Command Line and navigate to where you copied the package:
 
-    $cd path/to/copied/directory
+    $ cd path/to/copied/directory
 
 ### Linux and MacOS
 
 Install the dependencies by entering:
 
-    $pip install -r requirements.txt
+    $ pip install -r requirements.txt
 
 ### Windows
 
@@ -32,26 +32,26 @@ Anyway, the best method I've found for Windows is to use conda environments.
 You can read more about them [here](http://conda.pydata.org/docs/using/envs.html#list-all-environments).
 Assuming you have installed Anaconda, do:
 
-    $conda create -n youtube Flask matplotlib numpy pandas
-    $activate youtube
-    $pip install plotly
-    $pip install youtube_dl
+    $ conda create -n youtube Flask matplotlib numpy pandas
+    $ activate youtube
+    $ pip install plotly
+    $ pip install youtube_dl
 
 This final step may fail. It's okay if it does:
 
-    $pip install wordcloud
+    $ pip install wordcloud
 
 ## Usage
 
 To run from the command-line, just do:
 
-    $python youtube_history.py
+    $ python youtube_history.py
 
 You'll be prompted for your Google username and password if you haven't downloaded the raw metadata yet. These are used only by youtube-dl.py
 
 To specify any non-default directory for the data, run:
 
-    $python youtube_history.py -o /path/to/empty/data/directory/
+    $ python youtube_history.py -o /path/to/empty/data/directory/
 
 ## Questions and Comments
 
