@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """
 Downloads, analyzes, and reports all Youtube videos associated with a users Google account.
 """
@@ -12,19 +14,17 @@ import subprocess as sp
 
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 from sys import stdout
-#from scipy.stats import describe
+
 try:
     from wordcloud import WordCloud
 except ImportError:
     WordCloud = None
-from webbrowser import open_new_tab
 
+from webbrowser import open_new_tab
 from flask import Flask
 from flask import render_template
-#from flask import send_from_directory
 
 from grapher import Grapher
 
@@ -166,7 +166,7 @@ class Analysis():
         
     def make_wordcloud(self):
         """Generate the wordcloud file and save it to static/images/."""
-        plt.rcParams['figure.figsize'] = [24.0, 18.0]
+        #plt.rcParams['figure.figsize'] = [24.0, 18.0]
         print('Creating wordcloud')
         flat_tags = [item for sublist in self.tags for item in sublist]
         wordcloud = WordCloud(width=1920, 
