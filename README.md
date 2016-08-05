@@ -59,6 +59,5 @@ Feel free to direct any questions or comments to the Issues page of the reposito
 
 ## TODO
 
-[x] Docstrings
-[ ] Fix bugs for "No funnies" and youtube-dl error.
-[ ] Add more complicated analyses, like Reddit's best method.
+* Fix edge-case for all videos having dislikes
+* Add more complicated analyses, like Reddit's best method.
