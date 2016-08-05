@@ -15,13 +15,13 @@ Copy or clone this package from Github.
 
 Open the Terminal/Command Line and navigate to where you copied the package:
 
-    cd path/to/copied/directory
+    $cd path/to/copied/directory
 
 ### Linux and MacOS
 
 Install the dependencies by entering:
 
-    pip install -r requirements.txt
+    $pip install -r requirements.txt
 
 ### Windows
 
@@ -45,13 +45,13 @@ This final step may fail. It's okay if it does:
 
 To run from the command-line, just do:
 
-    $ python youtube_history.py
+    $python youtube_history.py
 
 You'll be prompted for your Google username and password if you haven't downloaded the raw metadata yet. These are used only by youtube-dl.py
 
 To specify any non-default directory for the data, run:
 
-    $ python youtube_history.py -o /path/to/empty/data/directory/
+    $python youtube_history.py -o /path/to/empty/data/directory/
 
 ## Questions and Comments
 
@@ -59,6 +59,6 @@ Feel free to direct any questions or comments to the Issues page of the reposito
 
 ## TODO
 
-* Docstrings
-* Address "error: Unable to find vcvarsall.bat" issues.
-* Fix bugs for "No funnies" and youtube-dl error.
+[x] Docstrings
+[] Fix bugs for "No funnies" and youtube-dl error.
+[] Add more complicated analyses, like Reddit's best method.
