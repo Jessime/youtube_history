@@ -32,7 +32,7 @@ Anyway, the best method I've found for Windows is to use conda environments.
 You can read more about them [here](http://conda.pydata.org/docs/using/envs.html#list-all-environments).
 Assuming you have installed Anaconda, do:
 
-    $ conda create -n youtube Flask matplotlib numpy pandas
+    $ conda create -n youtube Flask numpy pandas
     $ activate youtube
     $ pip install plotly
     $ pip install youtube_dl
