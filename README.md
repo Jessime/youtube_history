@@ -51,5 +51,5 @@ Feel free to direct any questions or comments to the Issues page of the reposito
 
 ## TODO
 
-* Fix edge-case for all videos having dislikes
+* Add a pip package and command line tool.
 * Add more complicated analyses, like Reddit's best method.

@@ -232,8 +232,10 @@ class Analysis():
         """Finds well liked and highly viewed videos"""
         all_likes = self.df[(self.df['like_count'] > 0) & (self.df['dislike_count'] == 0)]
         all_likes = all_likes.sort_values('like_count', ascending=False)
-        self.all_likes = all_likes.iloc[0]
-
+        try:
+            self.all_likes = all_likes.iloc[0]
+        except IndexError:
+            pass
         self.most_liked = self.df.loc[self.df['like_count'].idxmax()]
         self.most_viewed = self.df.loc[self.df['view_count'].idxmax()]
 

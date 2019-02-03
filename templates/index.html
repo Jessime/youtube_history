@@ -111,11 +111,15 @@
                 </div>                
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
                   <h4>Video with the most likes and 0 dislikes:</h4>
+                  {% if analysis.all_likes is none %}
+                    <p>Sadly, none of the videos you have watched are void of dislikes.</p>
+                  {% else %}
                   <ul>
                     <li><b>Title: </b>{{analysis.all_likes.title}}</li>
                     <li><b>Like Count: </b>{{analysis.all_likes.like_count|int}}</li>
                     <li><b>Url: </b><a href="{{analysis.all_likes.webpage_url}}">{{analysis.all_likes.webpage_url}}</a></li>
                   </ul>
+                  {% endif %}
                 </div>
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
                   <h4>Video with the most views:</h4>
