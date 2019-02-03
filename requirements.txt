@@ -1,3 +1,4 @@
+matplotlib
 youtube_dl
 Flask
 numpy

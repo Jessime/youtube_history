@@ -8,7 +8,7 @@ The final results of the analysis should look pretty similar to mine:
 
 https://jessime.github.io/youtube_gh_pages/
 
-## Installation 
+## Installation
 This script uses Python 3.x. If you don't have Python, I would recommend downloading it from [Anaconda](https://www.continuum.io/downloads).
 
 Copy or clone this package from Github.
@@ -17,45 +17,37 @@ Open the Terminal/Command Line and navigate to where you copied the package:
 
     $ cd path/to/copied/directory
 
-### Linux and MacOS
-
-Install the dependencies by entering:
+Then, just run:
 
     $ pip install -r requirements.txt
 
-### Windows
-
-Windows is a bit trickier. Compiling Numpy can be difficult. 
-And personally, I haven't had any luck getting `wordcloud` up and running yet.
-Hopefully this will be addressed soon. 
-Anyway, the best method I've found for Windows is to use conda environments.
-You can read more about them [here](http://conda.pydata.org/docs/using/envs.html#list-all-environments).
-Assuming you have installed Anaconda, do:
-
-    $ conda create -n youtube Flask numpy pandas
-    $ activate youtube
-    $ pip install plotly
-    $ pip install youtube_dl
-
-This final step may fail. It's okay if it does:
-
-    $ pip install wordcloud
+to install the dependencies.
+Hopefully, a direct `pip install youtube_history` will be coming soon!
 
 ## Usage
 
-To run from the command-line, just do:
+To run from the command line, just do:
 
     $ python youtube_history.py
 
-You'll be prompted for your Google username and password if you haven't downloaded the raw metadata yet. These are used only by youtube-dl.py
+You'll be prompted for your Google username and password if you haven't downloaded the raw metadata yet.
+These are used only by `youtube-dl`, and not saved in any way (even locally).
 
 To specify any non-default directory for the data, run:
 
     $ python youtube_history.py -o /path/to/empty/data/directory/
 
+All interactions with YouTube are handled through `youtube-dl`, which isn't perfect.
+In particular, interacting with Google services like 2-Factor Authentication is an on-going effort.
+To help avoid triggering Google's protective measures, you can rate-limit your requests.
+This will slow down download time, but increase the likelihood of being able to download everything.
+To delay requests for a second, do:
+
+    $ python youtube_history.py -d 1
+
 ## Questions and Comments
 
-Feel free to direct any questions or comments to the Issues page of the repository. 
+Feel free to direct any questions or comments to the Issues page of the repository.
 
 ## TODO
 

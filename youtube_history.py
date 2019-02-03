@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Downloads, analyzes, and reports all Youtube videos associated with a users Google account.
+Downloads, analyzes, and reports all Youtube videos associated with a user's Google account.
 """
 
 import json
@@ -31,9 +31,11 @@ from grapher import Grapher
 
 app = Flask(__name__)
 
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('index.html', analysis=analysis)
+
 
 def launch_web():
     app.debug = False
@@ -46,6 +48,7 @@ def launch_web():
         open_new_tab(url)
         app.run()
 
+
 class Analysis():
     """Main class responsible for downloading and analyzing data.
 
@@ -53,6 +56,8 @@ class Analysis():
     ----------
     path : str (default='data')
         The path to the directory where both raw and computed results should be stored.
+    delay: float (default=0)
+        Amount of time in seconds to wait between requests.
 
     Attributes
     ----------
@@ -92,8 +97,9 @@ class Analysis():
     funny : Series
         The 'funniest' video as determined by funny_counts
     """
-    def __init__(self, path='data'):
+    def __init__(self, path='data', delay=0):
         self.path = path
+        self.delay = delay
         self.raw = os.path.join(self.path, 'raw')
         self.ran = os.path.join(self.path, 'ran')
         self.df = None
@@ -124,17 +130,21 @@ class Analysis():
             files = os.path.join(self.raw, '%(autonumber)s')
             if not os.path.exists(self.raw):
                 os.makedirs(self.raw)
-            cmd = ('youtube-dl -u "{}" -p "{}" '+
-                   '-o "{}" '+
-                   '--skip-download --write-info-json -i '+
-                   'https://www.youtube.com/feed/history ').format(user, pw, files)
+            template = ('youtube-dl -u "{}" -p "{}" '
+                        '-o "{}" --sleep-interval {} '
+                        '--skip-download --write-info-json -i '
+                        'https://www.youtube.com/feed/history ')
+            fake = template.format(user, '[$PASSWORD]', files, self.delay)
+            print(f'Executing youtube-dl command:\n\n{fake}\n')
+            cmd = template.format(user, pw, files, self.delay)
             p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
             while True:
-              line = p.stdout.readline().decode("utf-8").strip()
-              print(line)
-              if line == 'WARNING: unable to log in: bad username or password':
-                  successful_login = False
-              if not line: break
+                line = p.stdout.readline().decode("utf-8").strip()
+                print(line)
+                if line == 'WARNING: unable to log in: bad username or password':
+                    successful_login = False
+                if not line:
+                    break
 
     def df_from_files(self):
         """Constructs a Dataframe from the downloaded json files.
@@ -292,8 +302,11 @@ class Analysis():
 if __name__ == '__main__':
     print('Welcome!'); stdout.flush()
     parser = argparse.ArgumentParser()
-    parser.add_argument("-o", '--out', default='data', help="Path to empty directory for data storage.")
+    parser.add_argument("-o", '--out', default='data',
+                        help="Path to empty directory for data storage.")
+    parser.add_argument('-d', '--delay', default=0,
+                        help='Time to wait between requests. May help avoid 2FA.')
     args = parser.parse_args()
-    analysis = Analysis(args.out)
+    analysis = Analysis(args.out, float(args.delay))
     analysis.run()
     launch_web()
