@@ -5,6 +5,15 @@ import plotly.graph_objs as go
 
 from collections import Counter
 
+
+def flatten_without_nones(seq):
+    flat = []
+    for nested in seq:
+        if nested is not None:
+            flat += nested
+    return flat
+
+
 class Grapher():
     """Creates html-embeddable interactive graphs of Youtube data using plotly.
     
@@ -134,7 +143,7 @@ class Grapher():
         chunk_starts = [i for i in range(0, len(self.tags), 100)]
         
         for i in chunk_starts:
-            chunk = [item for sublist in self.tags[i:i+100] for item in sublist]
+            chunk = flatten_without_nones(self.tags[i:i+100])
             counted_chunk = Counter(chunk)
             top = counted_chunk.most_common(1)
             max_tags.append(top[0][0])

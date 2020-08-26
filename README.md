@@ -22,28 +22,43 @@ Then, just run:
     $ pip install -r requirements.txt
 
 to install the dependencies.
-Hopefully, a direct `pip install youtube_history` will be coming soon!
 
 ## Usage
 
-To run from the command line, just do:
+There are currently two options for downloading data.
+The prefered method is to use [Google Takeout](https://takeout.google.com/).
+Make sure `YouTube and YouTube Music` is checked and follow directions to download the zip file.
+It'll take 10-30 minutes to recieve an email from Google saying your job is done.
+Unzip your downloaded file and pass it as a command line parameter:
+
+    $ python youtube_history.py --takeout /path/to/Takeout
+    
+### Downloading with `youtube-dl`
+If you're more of a gambler, you can try using `youtube-dl` to download your data.
+Just do:
 
     $ python youtube_history.py
 
-You'll be prompted for your Google username and password if you haven't downloaded the raw metadata yet.
-These are used only by `youtube-dl`, and not saved in any way (even locally).
+and you'll be prompted for your Google username and password if you haven't downloaded the raw metadata yet.
+These are used only by `youtube-dl` and not saved in any way (even locally).
 
-To specify any non-default directory for the data, run:
-
-    $ python youtube_history.py -o /path/to/empty/data/directory/
-
-All interactions with YouTube are handled through `youtube-dl`, which isn't perfect.
-In particular, interacting with Google services like 2-Factor Authentication is an on-going effort.
+This is a "gamble" because `youtube-dl` is constantly fighting Google bot detection and losing more often than not.
+So your login attempts may trigger 2-Factor Authentication or fail completely.
 To help avoid triggering Google's protective measures, you can rate-limit your requests.
 This will slow down download time, but increase the likelihood of being able to download everything.
 To delay requests for a second, do:
 
     $ python youtube_history.py -d 1
+
+### Running with fresh data
+
+To specify any non-default directory for the data, run:
+
+    $ python youtube_history.py -o /path/to/empty/data/directory/
+
+Once raw metadata is downloaded to the default data directory, this step is skipped in future runs to save time.
+If you want to download a second dataset, you'll have to point the script to a new directory.
+(Or you can manually clear out the default `/data` folder). 
 
 ## Questions and Comments
 

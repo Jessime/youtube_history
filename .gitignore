@@ -27,6 +27,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+ve/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -71,6 +72,7 @@ target/
 
 #Data
 static/images/wordcloud.png
+data/*
 
 #PyCharm
 .idea/

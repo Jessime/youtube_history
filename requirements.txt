@@ -5,3 +5,5 @@ numpy
 pandas
 plotly
 wordcloud
+beautifulsoup4
+emoji

@@ -81,6 +81,7 @@
       </header>
       <main class="mdl-layout__content">
         <div class="mdl-layout__tab-panel is-active" id="overview">
+
 <!-- Time spend watching videos:-->
           <section id="time" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
@@ -96,31 +97,14 @@
               </div>
             </div>
           </section>
+
+
 <!-- The Best... and the Worst: -->
           <section id="best" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
               <div class="mdl-card__supporting-text">
                 <h3>The Best... and the Worst:</h3>
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-                  <h4>Video with the most likes:</h4>
-                  <ul>
-                    <li><b>Title: </b>{{analysis.most_liked.title}}</li>
-                    <li><b>Like Count: </b>{{analysis.most_liked.like_count|int}}</li>
-                    <li><b>Url: </b><a href="{{analysis.most_liked.webpage_url}}">{{analysis.most_liked.webpage_url}}</a></li>
-                  </ul>
-                </div>                
-                <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-                  <h4>Video with the most likes and 0 dislikes:</h4>
-                  {% if analysis.all_likes is none %}
-                    <p>Sadly, none of the videos you have watched are void of dislikes.</p>
-                  {% else %}
-                  <ul>
-                    <li><b>Title: </b>{{analysis.all_likes.title}}</li>
-                    <li><b>Like Count: </b>{{analysis.all_likes.like_count|int}}</li>
-                    <li><b>Url: </b><a href="{{analysis.all_likes.webpage_url}}">{{analysis.all_likes.webpage_url}}</a></li>
-                  </ul>
-                  {% endif %}
-                </div>
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
                   <h4>Video with the most views:</h4>
                   <ul>
@@ -129,33 +113,82 @@
                     <li><b>Url: </b><a href="{{analysis.most_viewed.webpage_url}}">{{analysis.most_viewed.webpage_url}}</a></li>
                   </ul>
                 </div>
-                <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-                  <h4>Video with the lowest rating:</h4>
-                  <ul>
-                    <li><b>Title: </b>{{analysis.lowest_rating.title}}</li>
-                    <li><b>Rating: </b>{{analysis.lowest_rating.average_rating}}</li>
-                    <li><b>Url: </b><a href="{{analysis.lowest_rating.webpage_url}}">{{analysis.lowest_rating.webpage_url}}</a></li>
-                  </ul>
+                  <h4>(A sampling of) videos with single digit views:</h4>
+                  <table>
+                    <tr>
+                      <th>Number</th>
+                      <th>Title</th>
+                      <th>Url</th>
+                      <th>Views</th>
+                    </tr>
+                    {% for i, row in analysis.least_viewed.iterrows() %}
+                      <tr>
+                          <td>{{i}}</td>
+                          <td>{{row.title}}</td>
+                          <td><a href="{{row.webpage_url}}">{{row.webpage_url}}</a></td>
+                          <td>{{row.view_count}}</td>
+                      </tr>
+                    {% endfor %}
+                  </table>
                 </div>
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-                  <h4>Video with the most dislikes:</h4>
+                  <h4>Best average rating per view count decile:</h4>
+                  <table>
+                    <tr>
+                      <th>Views</th>
+                      <th>Title</th>
+                      <th>Url</th>
+                      <th>Rating</th>
+                    </tr>
+                    {% for i, row in analysis.best_per_decile.iterrows() %}
+                      <tr>
+                          <td>{{row.view_count}}</td>
+                          <td>{{row.title}}</td>
+                          <td><a href="{{row.webpage_url}}">{{row.webpage_url}}</a></td>
+                          <td>{{row.average_rating}}</td>
+                      </tr>
+                    {% endfor %}
+                  </table>
+                </div>
+                <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
+                  <h4>Worst average rating per view count decile:</h4>
+                  <table>
+                    <tr>
+                      <th>Views</th>
+                      <th>Title</th>
+                      <th>Url</th>
+                      <th>Rating</th>
+                    </tr>
+                    {% for i, row in analysis.worst_per_decile.iterrows() %}
+                      <tr>
+                          <td>{{row.view_count}}</td>
+                          <td>{{row.title}}</td>
+                          <td><a href="{{row.webpage_url}}">{{row.webpage_url}}</a></td>
+                          <td>{{row.average_rating}}</td>
+                      </tr>
+                    {% endfor %}
+                  </table>
+                </div>
+                <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
+                  <h4>Video with the most emojis:</h4>
                   <ul>
-                    <li><b>Title: </b>{{analysis.most_disliked.title}}</li>
-                    <li><b>View Count: </b>{{analysis.most_disliked.dislike_count|int}}</li>
-                    <li><b>Url: </b><a href="{{analysis.most_disliked.webpage_url}}">{{analysis.most_disliked.webpage_url}}</a></li>
+                    <li><b>Title: </b>{{analysis.emojis.title}}</li>
+                    <li><b>Url: </b><a href="{{analysis.emojis.webpage_url}}">{{analysis.emojis.webpage_url}}</a></li>
+                    <li><b>Description: </b>{{analysis.emojis.description}}</li>
                   </ul>
                 </div>
               </div>
             </div>
           </section>
+
+
 <!-- Oldest videos: -->
           <section id="oldest" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
               <div class="mdl-card__supporting-text">
                 <h3>Oldest videos:</h3>
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-                <h4>The first 10 videos you watched:<h4>
-
+                <h4>The first 10 videos you watched:</h4>
 				<table>
 				  <tr>
 				    <th>Number</th>
@@ -170,7 +203,6 @@
 					</tr>
 				  {% endfor %}
 				</table>
-
                 </div>                
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
                 <h4>The earliest video uploaded to youtube:</h4>
@@ -181,6 +213,8 @@
               </div>
             </div>
           </section>
+
+
 <!-- Three random facts: -->
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
@@ -219,18 +253,24 @@
                 {{analysis.grapher.avg_rate_plot | safe}}
             </div>
           </section>
+
+
 <!-- Duration Plot -->
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
                 {{analysis.grapher.duration_plot | safe}}
             </div>
           </section>
+
+
 <!-- Views Plot -->
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
                 {{analysis.grapher.views_plot | safe}}
             </div>
           </section>
+
+
 <!-- Wordcloud -->
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
@@ -240,12 +280,16 @@
               </div>
             </div>
           </section>
+
+
 <!-- Tags Plot -->
       <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
         <div class="mdl-card mdl-cell mdl-cell--12-col">
             {{analysis.grapher.tags_plot | safe}}
         </div>
       </section>
+
+
 <!-- Bottom Flat -->
           <section class="section--footer mdl-color--white mdl-grid">
             <div class="section__circle-container mdl-cell mdl-cell--2-col mdl-cell--1-col-phone">
