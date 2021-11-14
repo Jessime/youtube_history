@@ -33,6 +33,9 @@ Unzip your downloaded file and pass it as a command line parameter:
 
     $ python youtube_history.py --takeout /path/to/Takeout
     
+The specific file we're looking for is `YouTube and YouTube Music/history/watch-history.html`.
+So make sure at least that one file exists in the `Takeout` directory.
+    
 ### Downloading with `youtube-dl`
 If you're more of a gambler, you can try using `youtube-dl` to download your data.
 Just do:
