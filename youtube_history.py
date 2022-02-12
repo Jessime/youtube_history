@@ -152,7 +152,11 @@ class Analysis:
         if not watch_history.is_file():
             raise ValueError(f'"{watch_history}" is not a file. Did you download your YouTube data? ')
         print('Extracting video urls from Takeout.'); sys.stdout.flush()
-        soup = BeautifulSoup(watch_history.read_text(), 'html.parser')
+        try:
+            text = watch_history.read_text()
+        except UnicodeDecodeError:
+            text = watch_history.read_text(encoding='utf-8')
+        soup = BeautifulSoup(text, 'html.parser')
         urls = [u.get('href') for u in soup.find_all('a')]
         videos = [u for u in urls if 'www.youtube.com/watch' in u]
         url_path = self.path / 'urls.txt'
