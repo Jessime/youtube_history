@@ -132,11 +132,15 @@ class Analysis:
         self.emojis = None
         self.oldest_videos = None
         self.oldest_upload = None
-        self.HD = None
-        self.UHD = None
+        self.most_comments = None
+        self.highest_comment_ratio = None
         self.top_uploaders = None
         self.funny = None
         self.funny_counts = None
+
+    def setup_dirs(self):
+        self.raw.mkdir(parents=True, exist_ok=True)
+        self.ran.mkdir(parents=True, exist_ok=True)
 
     def parse_soup(self, soup):
         """Extract ad counts and video urls from html soup"""
@@ -189,9 +193,10 @@ class Analysis:
         The tags of each video are pickled and saved as `tags.pkl`
         """
         logger.info('Creating dataframe...')
-        raw_paths = list(self.raw.glob("*.json"))
+        raw_paths = sorted(self.raw.glob("*.json"))
         video_metas = []
-        keys_and_defaults = {"average_rating": pd.NA, 
+        keys_and_defaults = {"like_count": pd.NA,
+                             "comment_count": pd.NA, 
                              "duration": pd.NA, 
                              "view_count": pd.NA, 
                              "upload_date": pd.NaT, 
@@ -223,17 +228,14 @@ class Analysis:
 
     def check_df(self):
         """Create the dataframe and tags from files if file doesn't exist."""
-        if not os.path.exists(self.ran):
-            os.makedirs(self.ran)
         df_file = self.ran / 'df.pkl'
         if df_file.is_file():
             self.df = pd.read_pickle(df_file)
             self.tags = pickle.load(open(self.ran / 'tags.pkl', 'rb'))
-            self.df['upload_date'] = pd.to_datetime(self.df['upload_date'])
         else:
             self.df_from_files()
             self.df.to_pickle(self.ran / 'df.pkl')
-            pickle.dump(self.tags, open(self.ran / 'tags.pkl'), 'wb')
+            pickle.dump(self.tags, open(self.ran / 'tags.pkl', 'wb'))
 
     def total_time(self):
         """The amount of time spent watching videos."""
@@ -260,14 +262,19 @@ class Analysis:
         self.formatted_time = ', '.join(result)
 
     def best_and_worst_videos(self):
-        """Finds well liked and highly viewed videos"""
+        """Finds well liked and highly viewed videos
+        
+        Note that Youtube has removed the dislike count, 
+        so we have to get a bit creative about what we're analyzing.
+        """
         self.most_viewed = self.df.loc[self.df['view_count'].idxmax()]
         low_views = self.df[self.df['view_count'] < 10]
         self.least_viewed = low_views.sample(min(len(low_views), 10), random_state=0)
+        self.df['likes_to_views'] = self.df["like_count"] / self.df["view_count"]
         self.df['deciles'] = pd.qcut(self.df['view_count'].fillna(0), 10, labels=False)
         grouped = self.df.groupby(by='deciles')
-        self.best_per_decile = self.df.iloc[grouped['average_rating'].idxmax()]
-        self.worst_per_decile = self.df.iloc[grouped['average_rating'].idxmin()]
+        self.best_per_decile = self.df.iloc[grouped['likes_to_views'].idxmax()]
+        self.worst_per_decile = self.df.iloc[grouped['likes_to_views'].idxmin()]
 
     def most_emojis_description(self):
         def _emoji_variety(desc):
@@ -297,11 +304,15 @@ class Analysis:
             title = 'Wait, 0? You\'re too cool to watch funny videos on youtube?'
             self.funny = make_fake_series(title, average_rating='N/A')
 
+    def chatty(self):
+        self.most_comments = self.df.iloc[self.df["comment_count"].idxmax()]
+        self.df["comment_to_view"] = self.df["comment_count"] / self.df["view_count"]
+        chatty = self.df[self.df["comment_count"] > 100]
+        self.highest_comment_ratio = chatty.iloc[chatty["comment_to_view"].idxmax()]
+
     def three_randoms(self):
         """Finds results for video resolutions, most popular channels, and funniest video."""
-        height = self.df['height'].fillna(0).astype(int)
-        self.HD = self.df[(720 <= height) & (height <= 1080)].shape[0]
-        self.UHD = self.df[height > 1080].shape[0]
+        self.chatty()
         self.top_uploaders = self.df["uploader"].value_counts().head(n=15)
         self.funniest_description()
 
@@ -323,13 +334,13 @@ class Analysis:
 
     def start_analysis(self):
         self.check_df()
-        if WordCloud is not None:
-            self.make_wordcloud()
+        self.make_wordcloud()
         self.compute()
         self.graph()
 
     def run(self):
         """Main function for downloading and analyzing data."""
+        self.setup_dirs()
         some_data = (self.raw /'00001.info.json').is_file()
         if not some_data:
             self.download_data()

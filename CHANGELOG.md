@@ -5,3 +5,5 @@
 * Massively speed up html parsing by moving to lxml
 * Allow multiple named analyses in the output directory
 * Replace printing with logging
+* Dislikes have been removed, so use likes_to_views instead of average_rating
+* HD and UHD aren't that interesting, so they've been removed in favor of comment stats
