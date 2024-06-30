@@ -65,7 +65,7 @@ class Grapher():
             Physical locations (positions) of the tick labels on the plot
         ticks_txt : ndarray
             Tick labels, on log scale, at each of the tick positions"""
-        log = np.log10(series)
+        log = np.log10(series.astype(float))
         ticks = np.linspace(min(log), max(log), 10)
         ticks_txt = np.round(np.power(10, ticks), decimals=dec)
         return log, ticks, ticks_txt
@@ -101,8 +101,8 @@ class Grapher():
         self.avg_rate_plot = self.plot(fig,  output_type='div')
     
     def duration(self):  
-
-        dur, ticks, ticks_txt = self.make_log_data(self.df.duration/60)
+        has_duration = self.df["duration"].dropna()
+        dur, ticks, ticks_txt = self.make_log_data(has_duration / 60)
         data = [go.Histogram(x=dur,
                              marker=dict(color='#673AB7'))]
         layout = dict(title='All Durations',
@@ -115,7 +115,8 @@ class Grapher():
         self.duration_plot = self.plot(fig,  output_type='div')
         
     def views(self):
-        views, ticks, ticks_txt = self.make_log_data(self.df.view_count, 0)
+        view_counts = self.df["view_count"].dropna().replace(0, 1)
+        views, ticks, ticks_txt = self.make_log_data(view_counts, 0)
         ticks_txt = [self.humanize(t) for t in ticks_txt]
         data = [go.Histogram(x=views,
                              marker=dict(color='#673AB7'))]

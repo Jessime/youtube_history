@@ -9,12 +9,12 @@ import json
 import os
 import pickle
 import argparse
-import getpass
 import subprocess as sp
 import sys
 
 from collections import namedtuple
 from pathlib import Path
+from uuid import uuid4
 from webbrowser import open_new_tab
 
 import pandas as pd
@@ -24,22 +24,11 @@ from wordcloud import WordCloud
 from flask import Flask
 from flask import render_template
 from bs4 import BeautifulSoup
-from emoji import emoji_lis
+from emoji import emoji_list
+from tqdm import tqdm
 
 from grapher import Grapher, flatten_without_nones
 
-
-DEPRECATION_NOTE = """
-This method of downloading data is deprecated. 
-It uses youtube-dl to login to your Google account.
-This is error-prone, as Google may think you are a bot.
-Instead, you should go to https://takeout.google.com/,
-and follow directions there to download your "YouTube and YouTube Music" data.
-Then you can re-run this program specifying the `--takeout` flag,
-pointing to the *unzipped* directory you downloaded from Google.
-
-Do you want to continue anyway? [y/n]: 
-"""
 
 app = Flask(__name__)
 
@@ -74,10 +63,10 @@ class Analysis:
     ----------
     takeout : Optional[str]
         'Path to an unzipped Takeout folder downloaded from https://takeout.google.com/'
-    outpath : str (default='data')
+    out_base : str (default='data')
         The path to the directory where both raw and computed results should be stored.
-    delay : float (default=0)
-        Amount of time in seconds to wait between requests.
+    name : Optional[str]
+        Subdir of out_base where this particular analysis should be stored (e.g. 'jessime')
 
     Attributes
     ----------
@@ -121,16 +110,18 @@ class Analysis:
     funny : Series
         The 'funniest' video as determined by funny_counts
     """
-    def __init__(self, takeout=None, outpath='data', delay=0):
-        self.takeout = Path(takeout).expanduser()
-        self.path = Path(outpath)
-        self.delay = delay
-        self.raw = os.path.join(self.path, 'raw')  # TODO use Path
-        self.ran = os.path.join(self.path, 'ran')  # TODO use Path
+    def __init__(self, takeout=None, out_base='data', name=None):
+        self.takeout = None if takeout is None else Path(takeout).expanduser()
+        if name is None:
+            name = str(uuid4())
+        self.path = Path(out_base) / name
+        self.raw = self.path / 'raw'
+        self.ran = self.path / 'ran'
         self.df = None
         self.tags = None
         self.grapher = None
 
+        self.ad_count = None
         self.seconds = None
         self.formatted_time = None
         self.most_viewed = None
@@ -146,6 +137,26 @@ class Analysis:
         self.funny = None
         self.funny_counts = None
 
+    def parse_soup(self, soup):
+        """Extract ad counts and video urls from html soup"""
+        mdl_grid = next(soup.body.children)
+        ad_count = 0
+        videos = []
+        for outer_cell in mdl_grid.children:
+            inner_cell = next(outer_cell.children)
+            inner_children = list(inner_cell.children)
+            div_with_vid_url = inner_children[1]
+            div_with_ads_info = inner_children[3]
+            if "From Google Ads" not in str(div_with_ads_info):
+                try:
+                    videos.append(div_with_vid_url.a["href"])
+                except TypeError:
+                    pass
+            else:
+                ad_count += 1
+        deduped_vids = list(dict.fromkeys(videos))
+        return deduped_vids, ad_count
+    
     def download_data(self):
         """Uses Takeout to download individual json files for each video."""
         watch_history = self.takeout / 'YouTube and YouTube Music/history/watch-history.html'
@@ -156,77 +167,48 @@ class Analysis:
             text = watch_history.read_text()
         except UnicodeDecodeError:
             text = watch_history.read_text(encoding='utf-8')
-        soup = BeautifulSoup(text, 'html.parser')
-        urls = [u.get('href') for u in soup.find_all('a')]
-        videos = [u for u in urls if 'www.youtube.com/watch' in u]
+        soup = BeautifulSoup(text, 'lxml')
+        videos, self.ad_count = self.parse_soup(soup)
         url_path = self.path / 'urls.txt'
         url_path.write_text('\n'.join(videos))
         print(f'Urls extracted. Downloading data for {len(videos)} videos now.')
-        output = os.path.join(self.raw, '%(autonumber)s')
-        cmd = f'youtube-dl -o "{output}" --skip-download --write-info-json -i -a {url_path}'
+        output = self.raw / '%(autonumber)s'
+        cmd = f'yt-dlp -o "{output}" --skip-download --write-info-json -i -a {url_path}'
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
         line = True
         while line:
             line = p.stdout.readline().decode("utf-8").strip()
             print(line)
 
-    def deprecated_download_data_via_youtube_dl_login(self):
-        """Uses youtube_dl to download individual json files for each video."""
-        result = input(DEPRECATION_NOTE)
-        if result.lower() != 'y':
-            sys.exit()
-        print('Okay, Let\'s login and download some data.')
-        successful_login = False
-        while not successful_login:
-            successful_login = True
-            user = input('Google username: ')
-            pw = getpass.getpass('Google password: ')
-            files = os.path.join(self.raw, '%(autonumber)s')
-            if not os.path.exists(self.raw):
-                os.makedirs(self.raw)
-            template = ('youtube-dl -u "{}" -p "{}" '
-                        '-o "{}" --sleep-interval {} '
-                        '--skip-download --write-info-json -i '
-                        'https://www.youtube.com/feed/history ')
-            fake = template.format(user, '[$PASSWORD]', files, self.delay)
-            print(f'Executing youtube-dl command:\n\n{fake}\n')
-            cmd = template.format(user, pw, files, self.delay)
-            p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
-            while True:
-                line = p.stdout.readline().decode("utf-8").strip()
-                print(line)
-                if line == 'WARNING: unable to log in: bad username or password':
-                    successful_login = False
-                if not line:
-                    break
-
     def df_from_files(self):
         """Constructs a Dataframe from the downloaded json files.
 
         All json keys whose values are not lists are compiled into the dataframe.
-        The dataframe is then saved as a csv file in the self.ran directory.
-        The tags of each video are pickled and saved as tags.txt
+        The dataframe is then saved as a pickle file in the self.ran directory.
+        The tags of each video are pickled and saved as `tags.pkl`
         """
         print('Creating dataframe...')
-        num = len([name for name in os.listdir(self.raw) if not name[0] == '.'])
-        files = os.path.join(self.raw, '~.info.json') # This is a weird hack
-        files = files.replace('~', '{:05d}') # It allows path joining to work on Windows
-        data = [json.load(open(files.format(i))) for i in range(1, num + 1)]
-
-        columns = ['formats', 'tags', 'categories', 'thumbnails']
-        lists = [[], [], [], []]
-        deletes = {k: v for k, v in zip(columns, lists)}
-        for dt in data:
-            for col, ls in deletes.items():
-                ls.append(dt[col])
-                del dt[col]
-
-        self.df = pd.DataFrame(data)
+        raw_paths = list(self.raw.glob("*.json"))
+        video_metas = []
+        keys_and_defaults = {"average_rating": pd.NA, 
+                             "duration": pd.NA, 
+                             "view_count": pd.NA, 
+                             "upload_date": pd.NaT, 
+                             "description": "", 
+                             "height": pd.NA, 
+                             "title": "", 
+                             "webpage_url": "", 
+                             "uploader": ""}
+        tags = []
+        for raw_path in tqdm(raw_paths):
+            meta = json.load(open(raw_path))
+            tags.append(meta.get("tags", []))
+            meta_to_keep = {k: meta.get(k, d) for k, d in keys_and_defaults.items()}
+            video_metas.append(meta_to_keep)
+        self.df = pd.DataFrame(video_metas)
         self.df['upload_date'] = pd.to_datetime(self.df['upload_date'], format='%Y%m%d')
-        self.df.to_csv(os.path.join(self.ran, 'df.csv'))
+        self.tags = tags
 
-        self.tags = deletes['tags']
-        pickle.dump(self.tags, open(os.path.join(self.ran, 'tags.txt'), 'wb'))
 
     def make_wordcloud(self):
         """Generate the wordcloud file and save it to static/images/."""
@@ -242,17 +224,19 @@ class Analysis:
         """Create the dataframe and tags from files if file doesn't exist."""
         if not os.path.exists(self.ran):
             os.makedirs(self.ran)
-        df_file = os.path.join(self.ran, 'df.csv')
-        if os.path.isfile(df_file):
-            self.df = pd.read_csv(df_file, index_col=0, parse_dates=[-11])
-            self.tags = pickle.load(open(os.path.join(self.ran, 'tags.txt'), 'rb'))
+        df_file = self.ran / 'df.pkl'
+        if df_file.is_file():
+            self.df = pd.read_pickle(df_file)
+            self.tags = pickle.load(open(self.ran / 'tags.pkl', 'rb'))
             self.df['upload_date'] = pd.to_datetime(self.df['upload_date'])
         else:
             self.df_from_files()
+            self.df.to_pickle(self.ran / 'df.pkl')
+            pickle.dump(self.tags, open(self.ran / 'tags.pkl'), 'wb')
 
     def total_time(self):
         """The amount of time spent watching videos."""
-        self.seconds = self.df.duration.sum()
+        self.seconds = self.df["duration"].sum()
         seconds = self.seconds
         intervals = (
             ('years', 31449600),  # 60 * 60 * 24 * 7 * 52
@@ -279,14 +263,14 @@ class Analysis:
         self.most_viewed = self.df.loc[self.df['view_count'].idxmax()]
         low_views = self.df[self.df['view_count'] < 10]
         self.least_viewed = low_views.sample(min(len(low_views), 10), random_state=0)
-        self.df['deciles'] = pd.qcut(self.df['view_count'], 10, labels=False)
+        self.df['deciles'] = pd.qcut(self.df['view_count'].fillna(0), 10, labels=False)
         grouped = self.df.groupby(by='deciles')
         self.best_per_decile = self.df.iloc[grouped['average_rating'].idxmax()]
         self.worst_per_decile = self.df.iloc[grouped['average_rating'].idxmin()]
 
     def most_emojis_description(self):
         def _emoji_variety(desc):
-            return len({x['emoji'] for x in emoji_lis(desc)})
+            return len({x['emoji'] for x in emoji_list(desc)})
 
         counts = self.df['description'].apply(_emoji_variety)
         self.emojis = self.df.iloc[counts.idxmax()]
@@ -296,7 +280,7 @@ class Analysis:
         funny_counts = []
         descriptions = []
         index = []
-        for i, d in enumerate(self.df.description):
+        for i, d in enumerate(self.df["description"]):
             try:
                 funny_counts.append(d.lower().count('funny'))
                 descriptions.append(d)
@@ -314,10 +298,10 @@ class Analysis:
 
     def three_randoms(self):
         """Finds results for video resolutions, most popular channels, and funniest video."""
-        height = self.df['height'].astype(int)
+        height = self.df['height'].fillna(0).astype(int)
         self.HD = self.df[(720 <= height) & (height <= 1080)].shape[0]
         self.UHD = self.df[height > 1080].shape[0]
-        self.top_uploaders = self.df.uploader.value_counts().head(n=15)
+        self.top_uploaders = self.df["uploader"].value_counts().head(n=15)
         self.funniest_description()
 
     def compute(self):
@@ -348,10 +332,7 @@ class Analysis:
         file1 = os.path.join(self.raw, '00001.info.json')
         some_data = os.path.isfile(file1)
         if not some_data:
-            if self.takeout is not None:
-                self.download_data()
-            else:
-                self.deprecated_download_data_via_youtube_dl_login()
+            self.download_data()
         some_data = os.path.isfile(file1)
         if some_data:
             self.start_analysis()
@@ -364,11 +345,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", '--out', default='data',
                         help="Path to empty directory for data storage.")
-    parser.add_argument('-d', '--delay', default=0,
-                        help='Time to wait between requests. May help avoid 2FA.')
+    parser.add_argument('-n', '--name',
+                        help='Name of analyses (e.g. jessime)')
     parser.add_argument('-t', '--takeout',
                         help='Path to an unzipped Takeout folder downloaded from https://takeout.google.com/')
     args = parser.parse_args()
-    analysis = Analysis(args.takeout, args.out, float(args.delay))
+    analysis = Analysis(args.takeout, args.out, args.name)
     analysis.run()
     launch_web()
