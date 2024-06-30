@@ -20,12 +20,13 @@ from webbrowser import open_new_tab
 import pandas as pd
 import numpy as np
 
-from wordcloud import WordCloud
-from flask import Flask
-from flask import render_template
 from bs4 import BeautifulSoup
 from emoji import emoji_list
+from flask import Flask
+from flask import render_template
+from loguru import logger
 from tqdm import tqdm
+from wordcloud import WordCloud
 
 from grapher import Grapher, flatten_without_nones
 
@@ -162,7 +163,7 @@ class Analysis:
         watch_history = self.takeout / 'YouTube and YouTube Music/history/watch-history.html'
         if not watch_history.is_file():
             raise ValueError(f'"{watch_history}" is not a file. Did you download your YouTube data? ')
-        print('Extracting video urls from Takeout.'); sys.stdout.flush()
+        logger.info('Extracting video urls from Takeout.'); sys.stdout.flush()
         try:
             text = watch_history.read_text()
         except UnicodeDecodeError:
@@ -171,14 +172,14 @@ class Analysis:
         videos, self.ad_count = self.parse_soup(soup)
         url_path = self.path / 'urls.txt'
         url_path.write_text('\n'.join(videos))
-        print(f'Urls extracted. Downloading data for {len(videos)} videos now.')
+        logger.info(f'Urls extracted. Downloading data for {len(videos)} videos now.')
         output = self.raw / '%(autonumber)s'
         cmd = f'yt-dlp -o "{output}" --skip-download --write-info-json -i -a {url_path}'
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
         line = True
         while line:
             line = p.stdout.readline().decode("utf-8").strip()
-            print(line)
+            logger.info(line)
 
     def df_from_files(self):
         """Constructs a Dataframe from the downloaded json files.
@@ -187,7 +188,7 @@ class Analysis:
         The dataframe is then saved as a pickle file in the self.ran directory.
         The tags of each video are pickled and saved as `tags.pkl`
         """
-        print('Creating dataframe...')
+        logger.info('Creating dataframe...')
         raw_paths = list(self.raw.glob("*.json"))
         video_metas = []
         keys_and_defaults = {"average_rating": pd.NA, 
@@ -212,7 +213,7 @@ class Analysis:
 
     def make_wordcloud(self):
         """Generate the wordcloud file and save it to static/images/."""
-        print('Creating wordcloud')
+        logger.info('Creating wordcloud')
         wordcloud = WordCloud(width=1920,
                               height=1080,
                               relative_scaling=.5)
@@ -305,7 +306,7 @@ class Analysis:
         self.funniest_description()
 
     def compute(self):
-        print('Computing...')
+        logger.info('Computing...')
         self.total_time()
         self.best_and_worst_videos()
         self.most_emojis_description()
@@ -329,19 +330,18 @@ class Analysis:
 
     def run(self):
         """Main function for downloading and analyzing data."""
-        file1 = os.path.join(self.raw, '00001.info.json')
-        some_data = os.path.isfile(file1)
+        some_data = (self.raw /'00001.info.json').is_file()
         if not some_data:
             self.download_data()
-        some_data = os.path.isfile(file1)
+        some_data = (self.raw /'00001.info.json').is_file()
         if some_data:
             self.start_analysis()
         else:
-            print('No data was downloaded.')
+            logger.info('No data was downloaded.')
 
 
 if __name__ == '__main__':
-    print('Welcome!'); sys.stdout.flush()
+    logger.info('Welcome!')
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", '--out', default='data',
                         help="Path to empty directory for data storage.")
