@@ -218,13 +218,17 @@ class Analysis:
 
     def make_wordcloud(self):
         """Generate the wordcloud file and save it to static/images/."""
-        logger.info('Creating wordcloud')
-        wordcloud = WordCloud(width=1920,
-                              height=1080,
-                              relative_scaling=.5)
-        flat_tags = flatten_without_nones(self.tags)
-        wordcloud.generate(' '.join(flat_tags))
-        wordcloud.to_file(os.path.join('static', 'images', 'wordcloud.png'))
+        wordcloud_path = Path(f"static/images/{self.name}_wordcloud.png")
+        if wordcloud_path.is_file():
+                logger.info("Wordcloud found at: {wordcloud_path}")
+        else:
+            logger.info('Creating wordcloud')
+            wordcloud = WordCloud(width=1920,
+                                height=1080,
+                                relative_scaling=.5)
+            flat_tags = flatten_without_nones(self.tags)
+            wordcloud.generate(' '.join(flat_tags))
+            wordcloud.to_file(wordcloud_path)
 
     def check_df(self):
         """Create the dataframe and tags from files if file doesn't exist."""
