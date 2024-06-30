@@ -1,9 +1,11 @@
-matplotlib
-youtube_dl
+beautifulsoup4
+emoji
 Flask
+lxml
+matplotlib
 numpy
 pandas
 plotly
+tqdm
 wordcloud
-beautifulsoup4
-emoji
+yt-dlp
