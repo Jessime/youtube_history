@@ -115,7 +115,8 @@ class Analysis:
         self.takeout = None if takeout is None else Path(takeout).expanduser()
         if name is None:
             name = str(uuid4())
-        self.path = Path(out_base) / name
+        self.name = name
+        self.path = Path(out_base) / self.name
         self.raw = self.path / 'raw'
         self.ran = self.path / 'ran'
         self.df = None
@@ -220,7 +221,7 @@ class Analysis:
         """Generate the wordcloud file and save it to static/images/."""
         wordcloud_path = Path(f"static/images/{self.name}_wordcloud.png")
         if wordcloud_path.is_file():
-                logger.info("Wordcloud found at: {wordcloud_path}")
+                logger.info(f"Wordcloud found at: {wordcloud_path}")
         else:
             logger.info('Creating wordcloud')
             wordcloud = WordCloud(width=1920,
@@ -274,11 +275,11 @@ class Analysis:
         self.most_viewed = self.df.loc[self.df['view_count'].idxmax()]
         low_views = self.df[self.df['view_count'] < 10]
         self.least_viewed = low_views.sample(min(len(low_views), 10), random_state=0)
-        self.df['likes_to_views'] = self.df["like_count"] / self.df["view_count"]
+        self.df['likes_pct'] = ((self.df["like_count"] / self.df["view_count"])  * 100).fillna(0).round(4)
         self.df['deciles'] = pd.qcut(self.df['view_count'].fillna(0), 10, labels=False)
         grouped = self.df.groupby(by='deciles')
-        self.best_per_decile = self.df.iloc[grouped['likes_to_views'].idxmax()]
-        self.worst_per_decile = self.df.iloc[grouped['likes_to_views'].idxmin()]
+        self.best_per_decile = self.df.iloc[grouped['likes_pct'].idxmax()].reset_index()
+        self.worst_per_decile = self.df.iloc[grouped['likes_pct'].idxmin()].reset_index()
 
     def most_emojis_description(self):
         def _emoji_variety(desc):

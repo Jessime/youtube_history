@@ -1,6 +1,6 @@
 # Making the dataframe
 
-I'm running into some memory usage issues since it seems that Google's outputting a lot of information. The latest run I did pulled down 10G of json, which I'm trying and failing to load into ram in a datafram. Instead of making the giant dataframe, I'm just going to keep the columns I'm using, which is a pretty small subset. Here's some info about what columns are available and how large they are, based of one random example:
+I'm running into some memory usage issues since it seems that Google's outputting a lot of information. The latest run I did pulled down 10G of json, which I'm trying and failing to load into ram in a dataframe. Instead of making the giant dataframe, I'm just going to keep the columns I'm using, which is a pretty small subset. Here's some info about what columns are available and how large they are, based of one random example:
 
 
 ```

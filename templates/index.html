@@ -132,28 +132,31 @@
                   </table>
                 </div>
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-                  <h4>Best average rating per view count decile:</h4>
+                  <h4>Best "Like Percentage" per view count decile:</h4>
                   <table>
                     <tr>
+                      <th>Decile</th>
                       <th>Views</th>
                       <th>Title</th>
                       <th>Url</th>
-                      <th>Rating</th>
+                      <th>Like %</th>
                     </tr>
                     {% for i, row in analysis.best_per_decile.iterrows() %}
                       <tr>
+                          <td>{{i * 10}}%</td>
                           <td>{{row.view_count}}</td>
                           <td>{{row.title}}</td>
                           <td><a href="{{row.webpage_url}}">{{row.webpage_url}}</a></td>
-                          <td>{{row.average_rating}}</td>
+                          <td>{{row.likes_pct}}</td>
                       </tr>
                     {% endfor %}
                   </table>
                 </div>
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-                  <h4>Worst average rating per view count decile:</h4>
+                  <h4>Worst "Like Percentage" per view count decile:</h4>
                   <table>
                     <tr>
+                      <th>Decile</th>
                       <th>Views</th>
                       <th>Title</th>
                       <th>Url</th>
@@ -161,10 +164,11 @@
                     </tr>
                     {% for i, row in analysis.worst_per_decile.iterrows() %}
                       <tr>
+                          <td>{{i * 10}}%</td>
                           <td>{{row.view_count}}</td>
                           <td>{{row.title}}</td>
                           <td><a href="{{row.webpage_url}}">{{row.webpage_url}}</a></td>
-                          <td>{{row.average_rating}}</td>
+                          <td>{{row.likes_pct}}</td>
                       </tr>
                     {% endfor %}
                   </table>
@@ -219,14 +223,7 @@
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
               <div class="mdl-card__supporting-text">
-                <h3>Three random facts:</h3>
-                <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
-                  <h4>High Definition is the future!:</h4>
-                  <ul>
-                    <li><b>HD videos watched: </b>{{analysis.HD}}</li>
-                    <li><b>UDF videos watched: </b>{{analysis.UHD}}</li>
-                  </ul>
-                </div>                
+                <h3>Three random facts:</h3>            
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
                   <h4>Most watched channels:</h4>
                   <ul>
@@ -239,11 +236,17 @@
                   <h4>The "funniest" video:</h4>
                     This video's description said the word "funny" {{analysis.funny_counts}} times(s).
                   <ul>
-                    <li><b>Title: </b>{{analysis.funny.title}}</li>
-                    <li><b>Rating: </b>{{analysis.funny.average_rating}}</li>
-                    <li><b>Url: </b><a href="{{analysis.funny.webpage_url}}">{{analysis.funny.webpage_url}}</a></li>
+                    <li><b>Title: </b><a href="{{analysis.funny.webpage_url}}">{{analysis.funny.title}}</a></li>
+                    <li><b>Like %: </b>{{analysis.funny.likes_pct}}</li>
                   </ul>
                 </div>
+                <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
+                  <h4>Videos with a lot of chatter :</h4>
+                  <ul>
+                    <li><b>Most commented: </b><a href={{analysis.most_comments.webpage_url}}>{{analysis.most_comments.title}}</a></li>
+                    <li><b>Surprisingly chatty: </b><a href={{analysis.highest_comment_ratio.webpage_url}}>{{analysis.highest_comment_ratio.title}}</a></li>
+                  </ul>
+                </div>    
               </div>
             </div>
           </section>

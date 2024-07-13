@@ -92,10 +92,10 @@ class Grapher():
         return num_str
         
     def average_rating(self):
-        data = [go.Histogram(x=self.df.average_rating,
+        data = [go.Histogram(x=self.df["likes_pct"],
                              marker=dict(color='#673AB7'))]
         layout = dict(title='All Rating',
-                      xaxis = dict(title = 'Rating'),
+                      xaxis = dict(title = 'Like %'),
                       yaxis = dict(title = 'Count'))
         fig = dict(data=data, layout=layout)
         self.avg_rate_plot = self.plot(fig,  output_type='div')
