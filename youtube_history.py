@@ -182,7 +182,6 @@ class Analysis:
         """Uses Takeout to download individual json files for each video."""
         soup = self.get_soup()
         videos, _ = self.parse_soup(soup)
-        videos = videos[:500]  # TESTINGgg
         url_path = self.path / 'urls.txt'
         url_path.write_text('\n'.join(videos))
         logger.info(f'Urls extracted. Downloading data for {len(videos)} videos now.')
