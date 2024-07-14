@@ -13,8 +13,8 @@ import subprocess as sp
 import sys
 
 from collections import namedtuple
+from getpass import getuser
 from pathlib import Path
-from uuid import uuid4
 from webbrowser import open_new_tab
 
 import pandas as pd
@@ -39,12 +39,10 @@ def index():
     return render_template('index.html', analysis=analysis)
 
 
-def launch_web():
-    app.debug = False
-    app.secret_key = 'this key should be complex'
-
-    file1 = os.path.join(analysis.raw, '00001.info.json')
-    some_data = os.path.isfile(file1)
+def launch_web(analysis):
+    app.debug = True
+    app.secret_key = "this is not real"
+    some_data = (analysis.raw / '00001.info.json').is_file()
     if some_data:
         url = 'http://127.0.0.1:5000'
         open_new_tab(url)
@@ -114,7 +112,7 @@ class Analysis:
     def __init__(self, takeout=None, out_base='data', name=None):
         self.takeout = None if takeout is None else Path(takeout).expanduser()
         if name is None:
-            name = str(uuid4())
+            name = getuser()
         self.name = name
         self.path = Path(out_base) / self.name
         self.raw = self.path / 'raw'
@@ -138,14 +136,31 @@ class Analysis:
         self.top_uploaders = None
         self.funny = None
         self.funny_counts = None
+        self.primary_lang = None
+        self.primary_lang_count = None
+        self.other_langs_count = None
+        self.best_per_lang = None
 
     def setup_dirs(self):
         self.raw.mkdir(parents=True, exist_ok=True)
         self.ran.mkdir(parents=True, exist_ok=True)
 
+    def get_soup(self):
+        watch_history = self.takeout / 'YouTube and YouTube Music/history/watch-history.html'
+        if not watch_history.is_file():
+            raise ValueError(f'"{watch_history}" is not a file. Did you download your YouTube data? ')
+        logger.info('Extracting video urls from Takeout.'); sys.stdout.flush()
+        try:
+            text = watch_history.read_text()
+        except UnicodeDecodeError:
+            text = watch_history.read_text(encoding='utf-8')
+        soup = BeautifulSoup(text, 'lxml')
+        return soup
+    
     def parse_soup(self, soup):
         """Extract ad counts and video urls from html soup"""
         mdl_grid = next(soup.body.children)
+        # I'm keeping ad_count but it really only started in 2022
         ad_count = 0
         videos = []
         for outer_cell in mdl_grid.children:
@@ -161,20 +176,13 @@ class Analysis:
             else:
                 ad_count += 1
         deduped_vids = list(dict.fromkeys(videos))
-        return deduped_vids, ad_count
+        return deduped_vids, ad_count  
     
     def download_data(self):
         """Uses Takeout to download individual json files for each video."""
-        watch_history = self.takeout / 'YouTube and YouTube Music/history/watch-history.html'
-        if not watch_history.is_file():
-            raise ValueError(f'"{watch_history}" is not a file. Did you download your YouTube data? ')
-        logger.info('Extracting video urls from Takeout.'); sys.stdout.flush()
-        try:
-            text = watch_history.read_text()
-        except UnicodeDecodeError:
-            text = watch_history.read_text(encoding='utf-8')
-        soup = BeautifulSoup(text, 'lxml')
-        videos, self.ad_count = self.parse_soup(soup)
+        soup = self.get_soup()
+        videos, _ = self.parse_soup(soup)
+        videos = videos[:500]  # TESTINGgg
         url_path = self.path / 'urls.txt'
         url_path.write_text('\n'.join(videos))
         logger.info(f'Urls extracted. Downloading data for {len(videos)} videos now.')
@@ -205,7 +213,8 @@ class Analysis:
                              "height": pd.NA, 
                              "title": "", 
                              "webpage_url": "", 
-                             "uploader": ""}
+                             "uploader": "",
+                             "language": ""}
         tags = []
         for raw_path in tqdm(raw_paths):
             meta = json.load(open(raw_path))
@@ -310,16 +319,30 @@ class Analysis:
             self.funny = make_fake_series(title, average_rating='N/A')
 
     def chatty(self):
-        self.most_comments = self.df.iloc[self.df["comment_count"].idxmax()]
+        "Finds videos with lots of comments"
+        self.most_comments = self.df.loc[self.df["comment_count"].idxmax()]
         self.df["comment_to_view"] = self.df["comment_count"] / self.df["view_count"]
         chatty = self.df[self.df["comment_count"] > 100]
-        self.highest_comment_ratio = chatty.iloc[chatty["comment_to_view"].idxmax()]
+        if chatty.empty:  # No videos have more than 100 comments
+            chatty = self.df[self.df["comment_count"] > 10]
+        self.highest_comment_ratio = chatty.loc[chatty["comment_to_view"].idxmax()]
 
     def three_randoms(self):
         """Finds results for video resolutions, most popular channels, and funniest video."""
         self.chatty()
         self.top_uploaders = self.df["uploader"].value_counts().head(n=15)
         self.funniest_description()
+
+    def by_language(self):
+        """Finds videos in other languages."""
+        raw_counts = self.df["language"].value_counts().drop("")
+        self.primary_lang = raw_counts.idxmax()
+        self.primary_lang_count = raw_counts.max()
+        self.other_langs_count = raw_counts.drop(self.primary_lang)
+        other_langs_df = self.df[self.df["language"].isin(self.other_langs_count.index)]
+        by_lang = other_langs_df.groupby("language")
+        liked_idxs = by_lang["likes_pct"].idxmax()
+        self.best_per_lang = other_langs_df.loc[liked_idxs]
 
     def compute(self):
         logger.info('Computing...')
@@ -329,6 +352,7 @@ class Analysis:
         self.oldest_videos = self.df[['title', 'webpage_url']].tail(n=10)
         self.oldest_upload = self.df.loc[self.df['upload_date'].idxmin()]
         self.three_randoms()
+        self.by_language()
 
     def graph(self):
         self.grapher = Grapher(self.df, self.tags)
@@ -359,13 +383,13 @@ class Analysis:
 if __name__ == '__main__':
     logger.info('Welcome!')
     parser = argparse.ArgumentParser()
+    parser.add_argument('-t', '--takeout', required=True,
+                        help='Path to an unzipped Takeout folder downloaded from https://takeout.google.com/')
     parser.add_argument("-o", '--out', default='data',
                         help="Path to empty directory for data storage.")
-    parser.add_argument('-n', '--name',
+    parser.add_argument('-n', '--name', default=getuser(), 
                         help='Name of analyses (e.g. jessime)')
-    parser.add_argument('-t', '--takeout',
-                        help='Path to an unzipped Takeout folder downloaded from https://takeout.google.com/')
     args = parser.parse_args()
     analysis = Analysis(args.takeout, args.out, args.name)
     analysis.run()
-    launch_web()
+    launch_web(analysis)

@@ -86,7 +86,7 @@
           <section id="time" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
               <div class="mdl-card__supporting-text">
-                <h3>Time spent watching videos:</h3>
+                <h3>Time spent watching {{analysis.df.shape[0]}} videos:</h3>
                 <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
                 <h4>Seconds: {{analysis.seconds}}</h4> 
                 </div>                
@@ -185,7 +185,54 @@
             </div>
           </section>
 
-
+<!-- Languages: -->
+<section id="best" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
+  <div class="mdl-card mdl-cell mdl-cell--12-col">
+    <div class="mdl-card__supporting-text">
+      <h3>Multilinguality:</h3>
+      <div>
+        <h4>
+          Your most watched language is "{{analysis.primary_lang}}". 
+          You've seen {{analysis.primary_lang_count}} videos.
+          Other languages include:
+        </h4>
+        <table>
+          <tr>
+            <th>Language</th>
+            <th>Count</th>
+          </tr>
+          {% for lang, count in analysis.other_langs_count.items() %}
+            <tr>
+                <td>{{lang}}</td>
+                <td>{{count}}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+      <div class="section__text mdl-cell mdl-cell--10-col-desktop mdl-cell--6-col-tablet mdl-cell--3-col-phone">
+        <h4>Best "Like Percentage" per non-primary language:</h4>
+        <table>
+          <tr>
+            <th>Language</th>
+            <th>Views</th>
+            <th>Title</th>
+            <th>Url</th>
+            <th>Like %</th>
+          </tr>
+          {% for i, row in analysis.best_per_lang.iterrows() %}
+            <tr>
+                <td>{{row.language}}</td>
+                <td>{{row.view_count}}</td>
+                <td>{{row.title}}</td>
+                <td><a href="{{row.webpage_url}}">{{row.webpage_url}}</a></td>
+                <td>{{row.likes_pct}}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
 <!-- Oldest videos: -->
           <section id="oldest" class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
@@ -250,6 +297,7 @@
               </div>
             </div>
           </section>
+
 <!-- Average Ratings Plot -->
           <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
             <div class="mdl-card mdl-cell mdl-cell--12-col">
@@ -279,7 +327,8 @@
             <div class="mdl-card mdl-cell mdl-cell--12-col">
               <div class="mdl-card__supporting-text">
                 <h3>Most common tags:</h3>
-                <img src= {{ url_for('static', filename = "images/wordcloud.png") }} alt="Install the wordcloud package to see the tags wordcloud."/>
+                <img src="{{ url_for('static', filename='images/' + analysis.name + '_wordcloud.png') }}" alt="Install the wordcloud package to see the tags wordcloud."/>
+
               </div>
             </div>
           </section>

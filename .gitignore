@@ -72,9 +72,12 @@ target/
 *~
 
 #Data
-static/images/wordcloud.png
+*wordcloud.png
 data/*
 data*/*
 
 #PyCharm
 .idea/
+
+#jupyter
+*.ipynb
