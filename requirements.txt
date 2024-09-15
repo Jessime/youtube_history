@@ -10,3 +10,5 @@ plotly
 tqdm
 wordcloud
 yt-dlp
+
+ruff

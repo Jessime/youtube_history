@@ -34,25 +34,35 @@ from grapher import Grapher, flatten_without_nones
 app = Flask(__name__)
 
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return render_template('index.html', analysis=analysis)
+    return render_template("index.html", analysis=analysis)
 
 
 def launch_web(analysis):
     app.debug = True
     app.secret_key = "this is not real"
-    some_data = (analysis.raw / '00001.info.json').is_file()
+    some_data = (analysis.raw / "00001.info.json").is_file()
     if some_data:
-        url = 'http://127.0.0.1:5000'
+        url = "http://127.0.0.1:5000"
         open_new_tab(url)
         app.run()
 
 
-def make_fake_series(title='N/A', webpage_url='N/A', **kwargs):
-    params = ['title', 'webpage_url'] + list(kwargs.keys())
-    Mock = namedtuple('MockSeries', params)
+def make_fake_series(title="N/A", webpage_url="N/A", **kwargs):
+    params = ["title", "webpage_url"] + list(kwargs.keys())
+    Mock = namedtuple("MockSeries", params)
     return Mock(title, webpage_url, **kwargs)
+
+
+class WatchHistoryParser:
+    """This class is responsible for parsing Takeout.
+
+    Specifically, it reads and extracts info from watch-history.html.
+    This data then gets passed on to Analysis.
+    """
+
+    pass
 
 
 class Analysis:
@@ -109,14 +119,15 @@ class Analysis:
     funny : Series
         The 'funniest' video as determined by funny_counts
     """
-    def __init__(self, takeout=None, out_base='data', name=None):
+
+    def __init__(self, takeout=None, out_base="data", name=None):
         self.takeout = None if takeout is None else Path(takeout).expanduser()
         if name is None:
             name = getuser()
         self.name = name
         self.path = Path(out_base) / self.name
-        self.raw = self.path / 'raw'
-        self.ran = self.path / 'ran'
+        self.raw = self.path / "raw"
+        self.ran = self.path / "ran"
         self.df = None
         self.tags = None
         self.grapher = None
@@ -146,17 +157,22 @@ class Analysis:
         self.ran.mkdir(parents=True, exist_ok=True)
 
     def get_soup(self):
-        watch_history = self.takeout / 'YouTube and YouTube Music/history/watch-history.html'
+        watch_history = (
+            self.takeout / "YouTube and YouTube Music/history/watch-history.html"
+        )
         if not watch_history.is_file():
-            raise ValueError(f'"{watch_history}" is not a file. Did you download your YouTube data? ')
-        logger.info('Extracting video urls from Takeout.'); sys.stdout.flush()
+            raise ValueError(
+                f"'{watch_history}' is not a file. Did you download your YouTube data?"
+            )
+        logger.info("Extracting video urls from Takeout.")
+        sys.stdout.flush()
         try:
             text = watch_history.read_text()
         except UnicodeDecodeError:
-            text = watch_history.read_text(encoding='utf-8')
-        soup = BeautifulSoup(text, 'lxml')
+            text = watch_history.read_text(encoding="utf-8")
+        soup = BeautifulSoup(text, "lxml")
         return soup
-    
+
     def parse_soup(self, soup):
         """Extract ad counts and video urls from html soup"""
         mdl_grid = next(soup.body.children)
@@ -176,16 +192,16 @@ class Analysis:
             else:
                 ad_count += 1
         deduped_vids = list(dict.fromkeys(videos))
-        return deduped_vids, ad_count  
-    
+        return deduped_vids, ad_count
+
     def download_data(self):
         """Uses Takeout to download individual json files for each video."""
         soup = self.get_soup()
         videos, _ = self.parse_soup(soup)
-        url_path = self.path / 'urls.txt'
-        url_path.write_text('\n'.join(videos))
-        logger.info(f'Urls extracted. Downloading data for {len(videos)} videos now.')
-        output = self.raw / '%(autonumber)s'
+        url_path = self.path / "urls.txt"
+        url_path.write_text("\n".join(videos))
+        logger.info(f"Urls extracted. Downloading data for {len(videos)} videos now.")
+        output = self.raw / "%(autonumber)s"
         cmd = f'yt-dlp -o "{output}" --skip-download --write-info-json -i -a {url_path}'
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
         line = True
@@ -200,20 +216,22 @@ class Analysis:
         The dataframe is then saved as a pickle file in the self.ran directory.
         The tags of each video are pickled and saved as `tags.pkl`
         """
-        logger.info('Creating dataframe...')
+        logger.info("Creating dataframe...")
         raw_paths = sorted(self.raw.glob("*.json"))
         video_metas = []
-        keys_and_defaults = {"like_count": pd.NA,
-                             "comment_count": pd.NA, 
-                             "duration": pd.NA, 
-                             "view_count": pd.NA, 
-                             "upload_date": pd.NaT, 
-                             "description": "", 
-                             "height": pd.NA, 
-                             "title": "", 
-                             "webpage_url": "", 
-                             "uploader": "",
-                             "language": ""}
+        keys_and_defaults = {
+            "like_count": pd.NA,
+            "comment_count": pd.NA,
+            "duration": pd.NA,
+            "view_count": pd.NA,
+            "upload_date": pd.NaT,
+            "description": "",
+            "height": pd.NA,
+            "title": "",
+            "webpage_url": "",
+            "uploader": "",
+            "language": "",
+        }
         tags = []
         for raw_path in tqdm(raw_paths):
             meta = json.load(open(raw_path))
@@ -221,47 +239,44 @@ class Analysis:
             meta_to_keep = {k: meta.get(k, d) for k, d in keys_and_defaults.items()}
             video_metas.append(meta_to_keep)
         self.df = pd.DataFrame(video_metas)
-        self.df['upload_date'] = pd.to_datetime(self.df['upload_date'], format='%Y%m%d')
+        self.df["upload_date"] = pd.to_datetime(self.df["upload_date"], format="%Y%m%d")
         self.tags = tags
-
 
     def make_wordcloud(self):
         """Generate the wordcloud file and save it to static/images/."""
         wordcloud_path = Path(f"static/images/{self.name}_wordcloud.png")
         if wordcloud_path.is_file():
-                logger.info(f"Wordcloud found at: {wordcloud_path}")
+            logger.info(f"Wordcloud found at: {wordcloud_path}")
         else:
-            logger.info('Creating wordcloud')
-            wordcloud = WordCloud(width=1920,
-                                height=1080,
-                                relative_scaling=.5)
+            logger.info("Creating wordcloud")
+            wordcloud = WordCloud(width=1920, height=1080, relative_scaling=0.5)
             flat_tags = flatten_without_nones(self.tags)
-            wordcloud.generate(' '.join(flat_tags))
+            wordcloud.generate(" ".join(flat_tags))
             wordcloud.to_file(wordcloud_path)
 
     def check_df(self):
         """Create the dataframe and tags from files if file doesn't exist."""
-        df_file = self.ran / 'df.pkl'
+        df_file = self.ran / "df.pkl"
         if df_file.is_file():
             self.df = pd.read_pickle(df_file)
-            self.tags = pickle.load(open(self.ran / 'tags.pkl', 'rb'))
+            self.tags = pickle.load(open(self.ran / "tags.pkl", "rb"))
         else:
             self.df_from_files()
-            self.df.to_pickle(self.ran / 'df.pkl')
-            pickle.dump(self.tags, open(self.ran / 'tags.pkl', 'wb'))
+            self.df.to_pickle(self.ran / "df.pkl")
+            pickle.dump(self.tags, open(self.ran / "tags.pkl", "wb"))
 
     def total_time(self):
         """The amount of time spent watching videos."""
         self.seconds = self.df["duration"].sum()
         seconds = self.seconds
         intervals = (
-            ('years', 31449600),  # 60 * 60 * 24 * 7 * 52
-            ('weeks', 604800),    # 60 * 60 * 24 * 7
-            ('days', 86400),      # 60 * 60 * 24
-            ('hours', 3600),      # 60 * 60
-            ('minutes', 60),
-            ('seconds', 1)
-            )
+            ("years", 31449600),  # 60 * 60 * 24 * 7 * 52
+            ("weeks", 604800),  # 60 * 60 * 24 * 7
+            ("days", 86400),  # 60 * 60 * 24
+            ("hours", 3600),  # 60 * 60
+            ("minutes", 60),
+            ("seconds", 1),
+        )
 
         result = []
 
@@ -270,30 +285,34 @@ class Analysis:
             if value:
                 seconds -= value * count
                 if value == 1:
-                    name = name.rstrip('s')
+                    name = name.rstrip("s")
                 result.append("{} {}".format(int(value), name))
-        self.formatted_time = ', '.join(result)
+        self.formatted_time = ", ".join(result)
 
     def best_and_worst_videos(self):
         """Finds well liked and highly viewed videos
-        
-        Note that Youtube has removed the dislike count, 
+
+        Note that Youtube has removed the dislike count,
         so we have to get a bit creative about what we're analyzing.
         """
-        self.most_viewed = self.df.loc[self.df['view_count'].idxmax()]
-        low_views = self.df[self.df['view_count'] < 10]
+        self.most_viewed = self.df.loc[self.df["view_count"].idxmax()]
+        low_views = self.df[self.df["view_count"] < 10]
         self.least_viewed = low_views.sample(min(len(low_views), 10), random_state=0)
-        self.df['likes_pct'] = ((self.df["like_count"] / self.df["view_count"])  * 100).fillna(0).round(4)
-        self.df['deciles'] = pd.qcut(self.df['view_count'].fillna(0), 10, labels=False)
-        grouped = self.df.groupby(by='deciles')
-        self.best_per_decile = self.df.iloc[grouped['likes_pct'].idxmax()].reset_index()
-        self.worst_per_decile = self.df.iloc[grouped['likes_pct'].idxmin()].reset_index()
+        self.df["likes_pct"] = (
+            ((self.df["like_count"] / self.df["view_count"]) * 100).fillna(0).round(4)
+        )
+        self.df["deciles"] = pd.qcut(self.df["view_count"].fillna(0), 10, labels=False)
+        grouped = self.df.groupby(by="deciles")
+        self.best_per_decile = self.df.iloc[grouped["likes_pct"].idxmax()].reset_index()
+        self.worst_per_decile = self.df.iloc[
+            grouped["likes_pct"].idxmin()
+        ].reset_index()
 
     def most_emojis_description(self):
         def _emoji_variety(desc):
-            return len({x['emoji'] for x in emoji_list(desc)})
+            return len({x["emoji"] for x in emoji_list(desc)})
 
-        counts = self.df['description'].apply(_emoji_variety)
+        counts = self.df["description"].apply(_emoji_variety)
         self.emojis = self.df.iloc[counts.idxmax()]
 
     def funniest_description(self):
@@ -303,7 +322,7 @@ class Analysis:
         index = []
         for i, d in enumerate(self.df["description"]):
             try:
-                funny_counts.append(d.lower().count('funny'))
+                funny_counts.append(d.lower().count("funny"))
                 descriptions.append(d)
                 index.append(i)
             except AttributeError:
@@ -314,8 +333,8 @@ class Analysis:
         if self.funny_counts > 0:
             self.funny = self.df.iloc[index[funny_counts_idx]]
         else:
-            title = 'Wait, 0? You\'re too cool to watch funny videos on youtube?'
-            self.funny = make_fake_series(title, average_rating='N/A')
+            title = "Wait, 0? You're too cool to watch funny videos on youtube?"
+            self.funny = make_fake_series(title, average_rating="N/A")
 
     def chatty(self):
         "Finds videos with lots of comments"
@@ -344,12 +363,12 @@ class Analysis:
         self.best_per_lang = other_langs_df.loc[liked_idxs]
 
     def compute(self):
-        logger.info('Computing...')
+        logger.info("Computing...")
         self.total_time()
         self.best_and_worst_videos()
         self.most_emojis_description()
-        self.oldest_videos = self.df[['title', 'webpage_url']].tail(n=10)
-        self.oldest_upload = self.df.loc[self.df['upload_date'].idxmin()]
+        self.oldest_videos = self.df[["title", "webpage_url"]].tail(n=10)
+        self.oldest_upload = self.df.loc[self.df["upload_date"].idxmin()]
         self.three_randoms()
         self.by_language()
 
@@ -369,25 +388,31 @@ class Analysis:
     def run(self):
         """Main function for downloading and analyzing data."""
         self.setup_dirs()
-        some_data = (self.raw /'00001.info.json').is_file()
+        some_data = (self.raw / "00001.info.json").is_file()
         if not some_data:
             self.download_data()
-        some_data = (self.raw /'00001.info.json').is_file()
+        some_data = (self.raw / "00001.info.json").is_file()
         if some_data:
             self.start_analysis()
         else:
-            logger.info('No data was downloaded.')
+            logger.info("No data was downloaded.")
 
 
-if __name__ == '__main__':
-    logger.info('Welcome!')
+if __name__ == "__main__":
+    logger.info("Welcome!")
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--takeout', required=True,
-                        help='Path to an unzipped Takeout folder downloaded from https://takeout.google.com/')
-    parser.add_argument("-o", '--out', default='data',
-                        help="Path to empty directory for data storage.")
-    parser.add_argument('-n', '--name', default=getuser(), 
-                        help='Name of analyses (e.g. jessime)')
+    parser.add_argument(
+        "-t",
+        "--takeout",
+        required=True,
+        help="Path to an unzipped Takeout folder downloaded from https://takeout.google.com/",
+    )
+    parser.add_argument(
+        "-o", "--out", default="data", help="Path to empty directory for data storage."
+    )
+    parser.add_argument(
+        "-n", "--name", default=getuser(), help="Name of analyses (e.g. jessime)"
+    )
     args = parser.parse_args()
     analysis = Analysis(args.takeout, args.out, args.name)
     analysis.run()
