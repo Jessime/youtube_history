@@ -5,14 +5,15 @@
 Downloads, analyzes, and reports all Youtube videos associated with a user's Google account.
 """
 
-import json
-import os
-import pickle
 import argparse
+import json
+import pickle
+import re
 import subprocess as sp
 import sys
 
 from collections import namedtuple
+from dataclasses import dataclass
 from getpass import getuser
 from pathlib import Path
 from webbrowser import open_new_tab
@@ -25,6 +26,7 @@ from emoji import emoji_list
 from flask import Flask
 from flask import render_template
 from loguru import logger
+from pandas._libs.tslibs.timestamps import Timestamp
 from tqdm import tqdm
 from wordcloud import WordCloud
 
@@ -55,14 +57,75 @@ def make_fake_series(title="N/A", webpage_url="N/A", **kwargs):
     return Mock(title, webpage_url, **kwargs)
 
 
-class WatchHistoryParser:
+@dataclass
+class Watch:
+    """One instance of watching a Video
+
+    I want to separate out the concept of watching a video from the video itself.
+    These two things were originally conflated in the code.
+    The only piece of video metadata stored here is the url, which we'll use as a primary key.
+    """
+
+    url: str
+    date: Timestamp
+
+
+class TakeoutParser:
     """This class is responsible for parsing Takeout.
 
     Specifically, it reads and extracts info from watch-history.html.
     This data then gets passed on to Analysis.
+
+    Parameters
+    ----------
+    takeout : str
+        Path to an unzipped Takeout folder downloaded from https://takeout.google.com/
     """
 
-    pass
+    def __init__(self, takeout: str):
+        self.takeout = Path(takeout).expanduser()
+
+        self.watches, self.ad_count = self.get_views_and_ads(self.get_soup())
+
+    def get_soup(self):
+        watch_history = self.takeout / "YouTube and YouTube Music/history/watch-history.html"
+        if not watch_history.is_file():
+            raise ValueError(f"'{watch_history}' is not a file. Did you download your YouTube data?")
+        logger.info("Extracting video urls from Takeout.")
+        sys.stdout.flush()
+        try:
+            text = watch_history.read_text()
+        except UnicodeDecodeError:
+            text = watch_history.read_text(encoding="utf-8")
+        soup = BeautifulSoup(text, "lxml")
+        return soup
+
+    def get_views_and_ads(self, soup):
+        """Extract ad counts and video urls from html soup"""
+        mdl_grid = next(soup.body.children)
+        # I'm keeping ad_count but it really only started in 2022
+        ad_count = 0
+        watches = []
+        for outer_cell in mdl_grid.children:
+            inner_cell = next(outer_cell.children)
+            inner_children = list(inner_cell.children)
+            div_with_vid_url = inner_children[1]
+            div_with_ads_info = inner_children[3]
+            if "From Google Ads" not in str(div_with_ads_info):
+                try:
+                    url = div_with_vid_url.a["href"]
+                except TypeError:  # TODO I don't remember why this block is here
+                    continue
+                raw_date = list(div_with_vid_url.stripped_strings)[-1].replace("\u202f", "")
+                pd_date = pd.to_datetime(re.sub(r"\s+[A-Z]{3,}$", "", raw_date), errors="coerce")
+                watches.append(Watch(url, pd_date))
+            else:
+                ad_count += 1
+
+        return watches, ad_count
+
+    def unique_vid_urls(self):
+        return [watch.url for watch in dict.fromkeys(self.views)]
 
 
 class Analysis:
@@ -70,8 +133,8 @@ class Analysis:
 
     Parameters
     ----------
-    takeout : Optional[str]
-        'Path to an unzipped Takeout folder downloaded from https://takeout.google.com/'
+    takeout_parser : TakeoutParser
+        Structured data from user's Takeout path
     out_base : str (default='data')
         The path to the directory where both raw and computed results should be stored.
     name : Optional[str]
@@ -120,8 +183,8 @@ class Analysis:
         The 'funniest' video as determined by funny_counts
     """
 
-    def __init__(self, takeout=None, out_base="data", name=None):
-        self.takeout = None if takeout is None else Path(takeout).expanduser()
+    def __init__(self, takeout_parser, out_base="data", name=None):
+        self.takeout_parser = takeout_parser
         if name is None:
             name = getuser()
         self.name = name
@@ -156,51 +219,12 @@ class Analysis:
         self.raw.mkdir(parents=True, exist_ok=True)
         self.ran.mkdir(parents=True, exist_ok=True)
 
-    def get_soup(self):
-        watch_history = (
-            self.takeout / "YouTube and YouTube Music/history/watch-history.html"
-        )
-        if not watch_history.is_file():
-            raise ValueError(
-                f"'{watch_history}' is not a file. Did you download your YouTube data?"
-            )
-        logger.info("Extracting video urls from Takeout.")
-        sys.stdout.flush()
-        try:
-            text = watch_history.read_text()
-        except UnicodeDecodeError:
-            text = watch_history.read_text(encoding="utf-8")
-        soup = BeautifulSoup(text, "lxml")
-        return soup
-
-    def parse_soup(self, soup):
-        """Extract ad counts and video urls from html soup"""
-        mdl_grid = next(soup.body.children)
-        # I'm keeping ad_count but it really only started in 2022
-        ad_count = 0
-        videos = []
-        for outer_cell in mdl_grid.children:
-            inner_cell = next(outer_cell.children)
-            inner_children = list(inner_cell.children)
-            div_with_vid_url = inner_children[1]
-            div_with_ads_info = inner_children[3]
-            if "From Google Ads" not in str(div_with_ads_info):
-                try:
-                    videos.append(div_with_vid_url.a["href"])
-                except TypeError:
-                    pass
-            else:
-                ad_count += 1
-        deduped_vids = list(dict.fromkeys(videos))
-        return deduped_vids, ad_count
-
     def download_data(self):
         """Uses Takeout to download individual json files for each video."""
-        soup = self.get_soup()
-        videos, _ = self.parse_soup(soup)
+        unique_vid_urls = self.takeout_parser.get_unique_vid_urls()
         url_path = self.path / "urls.txt"
-        url_path.write_text("\n".join(videos))
-        logger.info(f"Urls extracted. Downloading data for {len(videos)} videos now.")
+        url_path.write_text("\n".join(unique_vid_urls))
+        logger.info(f"Urls extracted. Downloading data for {len(unique_vid_urls)} videos now.")
         output = self.raw / "%(autonumber)s"
         cmd = f'yt-dlp -o "{output}" --skip-download --write-info-json -i -a {url_path}'
         p = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, shell=True)
@@ -298,15 +322,11 @@ class Analysis:
         self.most_viewed = self.df.loc[self.df["view_count"].idxmax()]
         low_views = self.df[self.df["view_count"] < 10]
         self.least_viewed = low_views.sample(min(len(low_views), 10), random_state=0)
-        self.df["likes_pct"] = (
-            ((self.df["like_count"] / self.df["view_count"]) * 100).fillna(0).round(4)
-        )
+        self.df["likes_pct"] = ((self.df["like_count"] / self.df["view_count"]) * 100).fillna(0).round(4)
         self.df["deciles"] = pd.qcut(self.df["view_count"].fillna(0), 10, labels=False)
         grouped = self.df.groupby(by="deciles")
         self.best_per_decile = self.df.iloc[grouped["likes_pct"].idxmax()].reset_index()
-        self.worst_per_decile = self.df.iloc[
-            grouped["likes_pct"].idxmin()
-        ].reset_index()
+        self.worst_per_decile = self.df.iloc[grouped["likes_pct"].idxmin()].reset_index()
 
     def most_emojis_description(self):
         def _emoji_variety(desc):
@@ -385,7 +405,7 @@ class Analysis:
         self.compute()
         self.graph()
 
-    def run(self):
+    def analyze(self):
         """Main function for downloading and analyzing data."""
         self.setup_dirs()
         some_data = (self.raw / "00001.info.json").is_file()
@@ -398,8 +418,7 @@ class Analysis:
             logger.info("No data was downloaded.")
 
 
-if __name__ == "__main__":
-    logger.info("Welcome!")
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-t",
@@ -407,13 +426,19 @@ if __name__ == "__main__":
         required=True,
         help="Path to an unzipped Takeout folder downloaded from https://takeout.google.com/",
     )
-    parser.add_argument(
-        "-o", "--out", default="data", help="Path to empty directory for data storage."
-    )
-    parser.add_argument(
-        "-n", "--name", default=getuser(), help="Name of analyses (e.g. jessime)"
-    )
-    args = parser.parse_args()
-    analysis = Analysis(args.takeout, args.out, args.name)
-    analysis.run()
+    parser.add_argument("-o", "--out", default="data", help="Path to empty directory for data storage.")
+    parser.add_argument("-n", "--name", default=getuser(), help="Name of analyses (e.g. jessime)")
+    return parser.parse_args()
+
+
+def run(args):
+    """Entrypoint to the program"""
+    logger.info("Welcome!")
+    takeout_parser = TakeoutParser(args.takeout)
+    analysis = Analysis(takeout_parser, args.out, args.name)
+    analysis.analyze()
     launch_web(analysis)
+
+
+if __name__ == "__main__":
+    run(parse_args())
