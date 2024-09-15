@@ -1,9 +1,10 @@
-import numpy as np
+from collections import Counter
+from functools import partial
 
+import numpy as np
 import plotly
 import plotly.graph_objs as go
-
-from collections import Counter
+import plotly.express as px
 
 
 def flatten_without_nones(seq):
@@ -20,8 +21,8 @@ class Grapher:
     Parameters
     ----------
     df : Dataframe
-        Users youtube data
-    tags : [[str]]
+        User's youtube video data
+    tags : [str]
         A list of tags for each downloaded video
 
     Attributes
@@ -38,15 +39,17 @@ class Grapher:
         html <div> of a plotly scatterplot of most common rollings tags
     """
 
-    def __init__(self, df, tags):
+    def __init__(self, df, monthly_watches, tags):
         self.df = df
+        self.monthly_watches = monthly_watches
         self.tags = tags
 
-        self.plot = plotly.offline.plot
+        self.plot = partial(plotly.offline.plot, output_type="div")
         self.avg_rate_plot = None
         self.duration_plot = None
         self.views_plot = None
         self.tags_plot = None
+        self.monthly_plot = None
 
     def make_log_data(self, series, dec=2):
         """Log10 transforms all data before plotting.
@@ -93,11 +96,9 @@ class Grapher:
 
     def average_rating(self):
         data = [go.Histogram(x=self.df["likes_pct"], marker=dict(color="#673AB7"))]
-        layout = dict(
-            title="All Rating", xaxis=dict(title="Like %"), yaxis=dict(title="Count")
-        )
+        layout = dict(title="All Rating", xaxis=dict(title="Like %"), yaxis=dict(title="Count"))
         fig = dict(data=data, layout=layout)
-        self.avg_rate_plot = self.plot(fig, output_type="div")
+        self.avg_rate_plot = self.plot(fig)
 
     def duration(self):
         has_duration = self.df["duration"].dropna()
@@ -114,7 +115,7 @@ class Grapher:
             ),
         )
         fig = dict(data=data, layout=layout)
-        self.duration_plot = self.plot(fig, output_type="div")
+        self.duration_plot = self.plot(fig)
 
     def views(self):
         view_counts = self.df["view_count"].dropna().replace(0, 1)
@@ -124,12 +125,10 @@ class Grapher:
         layout = dict(
             title="All View Counts",
             yaxis=dict(title="Views"),
-            xaxis=dict(
-                title="Count", tickmode="array", tickvals=ticks, ticktext=ticks_txt
-            ),
+            xaxis=dict(title="Count", tickmode="array", tickvals=ticks, ticktext=ticks_txt),
         )
         fig = dict(data=data, layout=layout)
-        self.views_plot = self.plot(fig, output_type="div")
+        self.views_plot = self.plot(fig)
 
     def get_max_tags_and_vals(self):
         """Finds the rolling tags and their value counts over chunks of 100 videos
@@ -153,7 +152,7 @@ class Grapher:
             max_values.append(top[0][1])
         return max_tags, max_values
 
-    def gen_tags_plot(self):
+    def make_tags_plot(self):
         chunk_starts = [i for i in range(0, len(self.tags), 100)]
         max_tags, max_values = self.get_max_tags_and_vals()
         data = [
@@ -171,4 +170,9 @@ class Grapher:
             xaxis=dict(title="Position of first video in history"),
         )
         fig = dict(data=data, layout=layout)
-        self.tags_plot = self.plot(fig, output_type="div")
+        self.tags_plot = self.plot(fig)
+
+    def make_monthly_watches_plot(self):
+        fig = px.bar(self.monthly_watches, x="year_month", y="counts", title="Number of Watches per Month")
+        fig.update_layout(xaxis_title="Month", yaxis_title="Number of Watches")
+        self.monthly_plot = self.plot(fig)

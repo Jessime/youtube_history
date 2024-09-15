@@ -125,7 +125,7 @@ class TakeoutParser:
         return watches, ad_count
 
     def unique_vid_urls(self):
-        return [watch.url for watch in dict.fromkeys(self.views)]
+        return [watch.url for watch in dict.fromkeys(self.watches)]
 
 
 class Analysis:
@@ -214,6 +214,7 @@ class Analysis:
         self.primary_lang_count = None
         self.other_langs_count = None
         self.best_per_lang = None
+        self.monthly_watches = None
 
     def setup_dirs(self):
         self.raw.mkdir(parents=True, exist_ok=True)
@@ -382,6 +383,13 @@ class Analysis:
         liked_idxs = by_lang["likes_pct"].idxmax()
         self.best_per_lang = other_langs_df.loc[liked_idxs]
 
+    def watches_by_month(self):
+        """Calculate how many watches occurred each month."""
+        df = pd.DataFrame([w.date for w in self.takeout_parser.watches], columns=["date"])
+        df["year_month"] = df["date"].dt.to_period("M")
+        self.monthly_watches = df.groupby("year_month").size().reset_index(name="counts")
+        self.monthly_watches["year_month"] = self.monthly_watches["year_month"].astype(str)
+
     def compute(self):
         logger.info("Computing...")
         self.total_time()
@@ -391,13 +399,15 @@ class Analysis:
         self.oldest_upload = self.df.loc[self.df["upload_date"].idxmin()]
         self.three_randoms()
         self.by_language()
+        self.watches_by_month()
 
     def graph(self):
-        self.grapher = Grapher(self.df, self.tags)
+        self.grapher = Grapher(self.df, self.monthly_watches, self.tags)
         self.grapher.average_rating()
         self.grapher.duration()
         self.grapher.views()
-        self.grapher.gen_tags_plot()
+        self.grapher.make_tags_plot()
+        self.grapher.make_monthly_watches_plot()
 
     def start_analysis(self):
         self.check_df()
@@ -437,8 +447,9 @@ def run(args):
     takeout_parser = TakeoutParser(args.takeout)
     analysis = Analysis(takeout_parser, args.out, args.name)
     analysis.analyze()
-    launch_web(analysis)
+    return analysis
 
 
 if __name__ == "__main__":
-    run(parse_args())
+    analysis = run(parse_args())  ## TODO make this not a global
+    launch_web(analysis)
